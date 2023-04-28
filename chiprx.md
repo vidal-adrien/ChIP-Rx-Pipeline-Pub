@@ -79,7 +79,7 @@ reference+spikein_genome.rev.2.bt
 
 All the files constituting the index should be in the same directory.
 
-We will also require a `.bed` file describing the entire genome as genomic regions which can be produced using [this script](bedFromFasta.pl) for both the reference genome alone and the combined genomes. 
+We will also require a `.bed` file describing the entire genome as genomic regions which can be produced using [this script](bedFromFasta.md) for both the reference genome alone and the combined genomes. 
 
 ```shell 
 bedFromFasta.pl -i reference_genome.fasta -o reference_genome.bed
@@ -537,7 +537,7 @@ To be repeated for each experimental condition in the analysis.
 
 When peaks are called on multiple biological replicates of the same condition, we may want to construct a consensus of marked regions between them.
 
-Between two replicates, this can be done, using [this script](mergeOverlappingRegions.sh), which selects the regions out of each set that intersect any region of the other set so that a minimum proportion of either region is overlapped by the other and merges any overlapping regions out of the resulting selection. The value of the `-l` argument should be a number between 0 and 1.
+Between two replicates, this can be done, using [this script](mergeOverlappingRegions.md), which selects the regions out of each set that intersect any region of the other set so that a minimum proportion of either region is overlapped by the other and merges any overlapping regions out of the resulting selection. The value of the `-l` argument should be a number between 0 and 1.
 
 **Example command to merge overlapping peaks out of two replicates:**
 ```shell
@@ -809,11 +809,11 @@ g1 <- "A"
 g2 <- "B"
     
 compId <- paste0(g1, ".", g2)
-res <- DESeq2::results(dds, contrast=c("group", g1, g2), pAdjustMethod="fdr")[coverage$type == "gene", ]
+sel <- coverage$type == "gene"
+res <- DESeq2::results(dds, contrast=c("group", g1, g2), pAdjustMethod="fdr")[sel, ]
 p.order <- order(res$padj)
-res <- cbind(id=coverage$name, res)
 res <- res[p.order, ]
-ids <- coverage$name[p.order]
+ids <- coverage$name[sel][p.order]
 ```
 
 We can output a table of the log fold change on all regions.

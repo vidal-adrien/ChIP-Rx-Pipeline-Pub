@@ -707,11 +707,11 @@ g1 <- "A"
 g2 <- "B"
     
 compId <- paste0(g1, ".", g2)
-res <- DESeq2::results(dds, contrast=c("group", g1, g2), pAdjustMethod="fdr")[coverage$type == "gene", ]
+sel <- coverage$type == "gene"
+res <- DESeq2::results(dds, contrast=c("group", g1, g2), pAdjustMethod="fdr")[sel, ]
 p.order <- order(res$padj)
-res <- cbind(id=coverage$name, res)
 res <- res[p.order, ]
-ids <- coverage$name[p.order]
+ids <- coverage$name[sel][p.order]
 ```
 
 We can output a table of the log fold change on all regions.
