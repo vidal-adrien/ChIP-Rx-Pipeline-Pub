@@ -17,8 +17,6 @@ Scripts used in the above guides.
 
 [mergeOverlappingRegions.sh](mergeOverlappingRegions.md): Bash script. Searches for overlaps of the genomic regions of the between two files and generates merged regions bed file out of selected regions.
 
-## Resources
+## Genomics resources:
 
-TAIR blacklist TODO
-
-Col-CEN blacklist TODO
+[resources/Col-CEN_blacklist.bed](Col-CEN_blacklist.bed): A blacklist of aberrant regions for the Col-CEN genome.
