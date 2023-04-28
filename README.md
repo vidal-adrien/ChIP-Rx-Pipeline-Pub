@@ -19,4 +19,4 @@ Scripts used in the above guides.
 
 ## Genomics resources:
 
-[resources/Col-CEN_blacklist.bed](Col-CEN_blacklist.bed): A blacklist of aberrant regions for the Col-CEN genome.
+[Col-CEN_blacklist.bed](resources/Col-CEN_blacklist.bed): A blacklist of aberrant regions for the Col-CEN genome.
