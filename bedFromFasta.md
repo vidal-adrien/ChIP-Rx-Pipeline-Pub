@@ -9,4 +9,4 @@ Options:
 *  `-o FILE`  Path of the output file.
 *  `-h`       Print this help.
 
-https://github.com/vidal-adrien/ChIP-Rx-Pipeline-Pub/blob/fa432adeb401e5924a48e93255b374c6791631d5/perl/bedFromFasta.pl#L1-L69
+https://github.com/vidal-adrien/ChIP-Rx-Pipeline-Pub/blob/fa432adeb401e5924a48e93255b374c6791631d5/perl/bedFromFasta.pl#L1-L68
