@@ -17,10 +17,11 @@ Unless specified otherwise, all code samples are in the bash Unix Shell command 
 
 The following programs are used in this pipeline:
 
-* [fastqc](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/)
-* [fastq_screen](https://www.bioinformatics.babraham.ac.uk/projects/fastq_screen/)
+* [fastqc](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/)(optional)
+* [fastq_screen](https://www.bioinformatics.babraham.ac.uk/projects/fastq_screen/)(optional)
 * [Trimmomatic](http://www.usadellab.org/cms/?page=trimmomatic)
-* [bowtie2](https://bowtie-bio.sourceforge.net/bowtie2/index.shtml)
+* [STAR](https://github.com/alexdobin/STAR)
+* [bowtie2](https://bowtie-bio.sourceforge.net/bowtie2/index.shtml)(optional)
 * The [samtools](https://www.htslib.org/) toolkit.
 * The [sambamba](http://lomereiter.github.io/sambamba/) toolkit.
 * The [bedtools](https://bedtools.readthedocs.io/en/latest/index.html) toolkit.
@@ -48,9 +49,47 @@ The following key terms are important to understand this page's instructions:
     </tr>
 </table>
 
-## <a id="indexing">1) Reference genome processing and indexing</a>
+## <a id="indexing">1) Reference genomes processing and indexing</a>
 
-If it is not already done, the reference genome must be indexed. The [bowtie2-build](https://bowtie-bio.sourceforge.net/bowtie2/manual.shtml#the-bowtie2-build-indexer) command is used to create the index for [bowtie2](https://bowtie-bio.sourceforge.net/bowtie2/index.shtml) to use. This step is only needed for the very first analysis made with the reference genome. The index files created by this tool can be used for any subsequent analyses.
+The referrence genome must be indexed. [STAR](https://github.com/alexdobin/STAR) with the `--runMode genomeGenerate` option will generate an index that it can use in its regular run mode. This step is only needed for the very first analysis made with this reference genome. The index files created by this tool can be used for any subsequent analyses.
+
+The STAR manual advises using the following formula to calculate the value for the `--genomeSAindexNbases` argument of its indexing mode:
+$$\min(14,~\frac{1}{2}*log_{2}(\sum_{i=1}^{C}L_i)-1)$$
+
+Where $C$ is the number of chromosomes on the genome assembly to index and $L_i$ is the length in base pairs of a chromosome $i$.
+
+To compute this, a `.bed` file describing the entire genome as genomic regions which can be produced using [this script](bedFromFasta.md).
+
+```shell
+bedFromFasta.pl -i reference_genome.fasta -o reference_genome.bed
+```
+
+This file will also be required for other procedures. Here, executing some R code using Rscript allows to more easily compute the formula.
+```shell
+NBASES=$(Rscript -e "writeLines(as.character(as.integer(
+    min(14, log2(sum( 
+        read.table('reference_genome.fasta')[[3L]]
+    ))/2 - 1)
+)))")
+```
+
+Then the index is built for the STAR aligner using `--runMode genomeGenerate`. The directory given as the `--genomeDir` must be empty.
+```shell
+STAR --runMode genomeGenerate \
+  --runThreadN $THREADS \
+  --genomeSAindexNbases NBASES \
+  --genomeFastaFiles reference_genome.fasta \
+  --genomeDir STAR_index/
+```
+
+Some tools will require a two column file with the id and length of the chromosomes.
+
+```shell 
+cat reference_genome.bed | cut -f 1,3 > reference_chromosome_sizes.txt
+```
+
+<a id="bt2indexing"></a>
+Finally, for the purpose of performing [contamination screening](#fastqscreen) with [fastq_screen](https://www.bioinformatics.babraham.ac.uk/projects/fastq_screen/), the the reference genome should be indexed for [bowtie2](https://bowtie-bio.sourceforge.net/bowtie2/index.shtml) using the [bowtie2-build](https://bowtie-bio.sourceforge.net/bowtie2/manual.shtml#the-bowtie2-build-indexer) command.
 
 ```shell 
 bowtie2-build -threads $THREADS reference_genome.fasta reference_genome
@@ -61,27 +100,15 @@ The last argument (in this case `"reference_genome"` is the prefix that each fil
 This procedure will produce 6 files respectively to the prefix:
 
 ```
-reference+spikein_genome.1.bt2
-reference+spikein_genome.2.bt2
-reference+spikein_genome.3.bt2
-reference+spikein_genome.4.bt2
-reference+spikein_genome.rev.1.bt2
-reference+spikein_genome.rev.2.bt
+reference_genome.1.bt2
+reference_genome.2.bt2
+reference_genome.3.bt2
+reference_genome.4.bt2
+reference_genome.rev.1.bt2
+reference_genome.rev.2.bt
 ```
 
-All the files constituting the index should be in the same directory.
-
-We will also require a `.bed` file describing the entire genome as genomic regions which can be produced using [this script](bedFromFasta.md). 
-
-```shell 
-bedFromFasta.pl -i reference_genome.fasta -o reference_genome.bed
-```
-
-Some tools will require a two column file with the id and length of the chromosomes. 
-
-```shell 
-cat reference_genome.bed | cut -f 1,3 > chromosome_sizes.txt
-```
+This bowtie2 indexing procedure should be repeated with any genomes of contaminants to screen against.
 
 ## 2) Quality control (optional)
 
@@ -105,7 +132,7 @@ To be repeated for each `.fastq` reads file in the analysis.
 
 The fastq_screen tool is used (with [bowtie2](https://bowtie-bio.sourceforge.net/bowtie2/index.shtml)) to detect and report the presence of contaminant sequences. A custom configuration file such as [this example](fastq_screen.conf) is necessary to use more than the default sequence files for detection.
 
-Each of the `DATABASE` entries in the configuration file must be the path to a folder containing the index files produced by the same aligner tool as the `--aligner` argument indicates. In our case, we will use bowtie2. This is done as explained in the [reference genome indexing section](#indexing). One of these `DATABASE` entries should be the index of the reference genome.
+Each of the `DATABASE` entries in the configuration file must be the path to a folder containing the index files produced by the same aligner tool as the `--aligner` argument indicates. In our case, we will use bowtie2. This is done as explained in the [reference genome indexing section](#bt2indexing). One of these `DATABASE` entries should be the index of the reference genome.
 
 **Example fastq_screen command:**
 ```shell 
@@ -176,39 +203,41 @@ To control the quality of the data after trimming, the [fastqc command](#fastqc)
 
 ### 3.2) Mapping
 
-The bowtie2 tool is used to map the reads and the samtools view command is used to compress the `.sam` output as a `.bam` file. The command is different between single-end and pair-end applications.
+[STAR](https://github.com/alexdobin/STAR) is used to produce an alignment map. While STAR is built for RNAseq, setting the `--alignIntronMax` and ` --alignEndsType` options to `1` and `EndToEnd` respectively allows replicating the bahaviour of other aligners for ChIP-seq. 
 
-**Example single-end bowtie2 command:**
-```shell 
-bowtie2 \
-    -p $THREADS  \ 
-    --very-sensitive \
-    -x reference_genome \
-    -U sample.trimmed.fastq \ 
-| samtools view -b -@ $THREADS -o sample.bam
+The `--readFilesIn` argument is used to indicate the input read file. If two files are given the aligner will operate in pair-end mode. The `--readFilesCommand` argument should be adapted for the type of input (*e.g.* `cat` for an uncompressed `.fasta` file or `zcat` for a compressed `.fasta.bz` file). The `--genomeDir` argument should be the folder in which the [index](#indexing) was produced. The `--outSAMtype` argument determines the output type, in this case a sorted `.bam` file. The `--outFileNamePrefix` argument is a string that prefixes the output file names. The alignment file given the output options will be `<prefix>_Aligned.sortedByCoord.out.bam`.
+
+The `--outFilterMismatchNmax` argument limits the number of allowed mismatches in each alignment. The `--outSAMmultNmax` determines how many alignments may be given for each read and `--outMultimapperOrder` determines how alignments are picked out of others with equal quality. Finally, the `--outFilterMultimapNmax` may be added to determine for how many alignments a multimapping read will be filtered out entirely. Note that this filter is applied by default with a value of 10 even if the argument is not specified. More information can be found in the [STAR manual](https://raw.githubusercontent.com/alexdobin/STAR/master/doc/STARmanual.pdf).
+
+Finally we index the alignment map with [samtools index](http://www.htslib.org/doc/samtools-index.html).
+
+**Example single-end STAR alignment command:**
+```shell
+STAR --alignIntronMax 1 --alignEndsType EndToEnd --runThreadN $THREADS \
+  --readFilesIn sample.trimmed.fastq --readFilesCommand zcat \
+  --genomeDir STAR_index/ \
+  --outTmpDir $TMP \
+  --outSAMtype BAM SortedByCoordinate --outFileNamePrefix sample \
+  --outFilterMismatchNmax 2 --outSAMmultNmax 1 --outMultimapperOrder Random
+
+samtools index -@ $THREADS  sample_Aligned.sortedByCoord.out.bam
 ```
 
-The `-x` argument must be the common prefix to all the index files (without the `.*.bt2` or `.rev*.bt2`). The `--very-sensitive` argument is a preset of mapping parameters for a better but slower search for alignments.
+**Example pair-end STAR alignment command:**
+```shell
+STAR --alignIntronMax 1 --alignEndsType EndToEnd --runThreadN $THREADS \
+  --readFilesIn sample_1.trimmed.fastq sample_2.trimmed.fastq --readFilesCommand zcat \
+  --genomeDir STAR_index/ \
+  --outTmpDir $TMP \
+  --outSAMtype BAM SortedByCoordinate --outFileNamePrefix sample \
+  --outFilterMismatchNmax 2 --outSAMmultNmax 1 --outMultimapperOrder Random
 
-### 3.3) Sorting
-
-The [samtools sort](https://www.htslib.org/doc/samtools-sort.html) command is used to sort the bam file and it is indexed using samtools index. 
-
-**Example sorting command:**
-```shell 
-samtools sort \
-    -@ $THREADS \
-    -m ${MEM_GB}g \ 
-    -T tempDir/ \
-    -o sample.sorted.bam \
-    sample.bam \
-  
-samtools index -@ $THREADS sample.sorted.bam
+samtools index -@ $THREADS  sample_Aligned.sortedByCoord.out.bam
 ```
 
-### 3.4) Reads filtering
+### 3.3) Reads filtering
 
-Filters are applied using [samtools sort](https://www.htslib.org/doc/samtools-sort.html). The flag used to filter ecompasses the following:
+Filters are applied using [samtools view](https://www.htslib.org/doc/samtools-view.html). The flag used to filter ecompasses the following:
 
 |2572||
 |:----|:--------------------------------------------|
@@ -232,7 +261,7 @@ samtools index -@ $THREADS sample.sorted.filtered.bam
 
 To be repeated for each sample in the analysis. 
 
-### 3.5) Deduplication
+### 3.4) Deduplication
 
 Optical duplicate reads are removed using the [markdup](http://lomereiter.github.io/sambamba/docs/sambamba-markdup.html) command from sambamba.
 
@@ -248,7 +277,7 @@ samtools index -@ $THREADS sample.sorted.filtered.nodup.bam
 
 To be repeated for each sample in the analysis.
 
-### <a id="masking">3.6) Masking genomic regions</a>
+### <a id="masking">3.5) Masking genomic regions</a>
 
 A filter by region may be applied to the alignment files in order to select unwanted regions of the genome. The `-L` option for [samtools view](https://www.htslib.org/doc/samtools-view.html) allows making a selection or regions using a `.bed` file. This step can also be used to remove chromosomes we don't want to study at all such as the mitochondrial and chloroplastic chromosomes when studying the nucleic chromosomes only.
 
@@ -271,7 +300,7 @@ bedtools subtract -a reference_genome.bed -b blacklist.bed > selection.bed
 
 To be repeated for each sample in the analysis.
 
-### 3.7) Cleaning up (optional)
+### 3.6) Cleaning up (optional)
 
 The pipeline, as presented, creates many heavy intermediate files which allows for easy backtracking but is not economical in terms of disk space.
 

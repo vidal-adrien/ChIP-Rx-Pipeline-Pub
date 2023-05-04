@@ -1,8 +1,11 @@
-# PNDS Genomics pipelines
+# Plant Nuclear Dynamics & Signaling 
+
+Team led by Clara Bourbousse & Fredy Barneche.
+Scripts and documentation by Adrien Vidal.
 
 ## Pipeline guides
 
-Step-by-step guides to realize analyses.
+Step-by-step guides to genomic analysis pipelines used by the team.
 
 [ChIP-Seq pipeline](chipseq.md)
 
@@ -19,4 +22,19 @@ Scripts used in the above guides.
 
 ## Genomics resources:
 
-[Col-CEN_blacklist.bed](resources/Col-CEN_blacklist.bed): A blacklist of aberrant regions for the Col-CEN genome.
+Genomic resources used by the t
+
+**Reference genomes:**
+*  [⇗TAIR10_chr_all.fas.gz](https://www.arabidopsis.org/download_files/Genes/TAIR10_genome_release/TAIR10_chromosome_files/TAIR10_chr_all.fas.gz): *Arabidopsis thaliana* TAIR10 genome assembly.
+*  [⇗Col-CEN_v1.2.fasta.gz](https://github.com/schatzlab/Col-CEN/blob/main/v1.2/Col-CEN_v1.2.fasta.gz): *Arabidopsis thaliana* Col-CEN genome assembly.
+*  [⇗Download page](https://www.ncbi.nlm.nih.gov/assembly/GCF_000001215.4/) for *Drosophila melanogaster* release 6 genome assembly.
+
+**Annotation:**
+*  [Araport11_GFF3.gene.201606.bed](resources/Araport11_GFF3.gene.201606.bed): Araport 11 annotation for genes on *Arabidopsis thaliana* TAIR10 genome assembly.
+*  [Araport11_GFF3.TAIR10.transposable_element.201606.bed](resources/Araport11_GFF3.TAIR10.transposable_element.201606.bed): Araport 11 annotation for transposable elements on *Arabidopsis thaliana* TAIR10 genome assembly.
+*  [Col-CEN_v1.2_genes.araport11.gene.bed](resources/Col-CEN_v1.2_genes.araport11.gene.bed): Lifted Araport 11 annotation for genes on *Arabidopsis thaliana* Col-CEN genome assembly.
+*  [Col-CEN_v1.2_TEs_V4.bed](resources/Col-CEN_v1.2_TEs_V4.bed): Lifted Araport 11 annotation for transposable elements on *Arabidopsis thaliana* Col-CEN genome assembly.
+
+**Blacklists:**
+*  [Col-CEN_blacklist.bed](resources/TAIR10_blacklist.bed): A blacklist of aberrant regions for the *Arabidopsis thaliana* TAIR10 genome.
+*  [Col-CEN_blacklist.bed](resources/Col-CEN_blacklist.bed): A blacklist of aberrant regions for the *Arabidopsis thaliana* Col-CEN genome.
