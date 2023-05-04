@@ -1,6 +1,7 @@
 # Plant Nuclear Dynamics & Signaling 
 
-Team led by Clara Bourbousse & Fredy Barneche.
+This is a public collection of documentation about ChIP-seq and ChIP-Rx pipelines used by the PNDS (Plant Nuclear Dynamics & Signaling) Team led by Clara Bourbousse & Fredy Barneche.
+
 Scripts and documentation by Adrien Vidal.
 
 ## Pipeline guides
@@ -11,7 +12,7 @@ Step-by-step guides to genomic analysis pipelines used by the team.
 
 [ChIP-Rx pipeline](chiprx.md)
 
-## Custom tools 
+## Custom tools
 Scripts used in the above guides.
 
 [bedFromFasta.pl:](bedFromFasta.md): Perl script. Creates a `.bed` table of the full length of the sequences from a `.fasta` file.
@@ -20,9 +21,9 @@ Scripts used in the above guides.
 
 [mergeOverlappingRegions.sh](mergeOverlappingRegions.md): Bash script. Searches for overlaps of the genomic regions of the between two files and generates merged regions bed file out of selected regions.
 
-## Genomics resources:
+## Genomics resources
 
-Genomic resources used by the t
+Genomic resources used by the the team when applying the above pipelines to *Arabidopsis thaliana* experiments. 
 
 **Reference genomes:**
 *  [⇗TAIR10_chr_all.fas.gz](https://www.arabidopsis.org/download_files/Genes/TAIR10_genome_release/TAIR10_chromosome_files/TAIR10_chr_all.fas.gz): *Arabidopsis thaliana* TAIR10 genome assembly.
