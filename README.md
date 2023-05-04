@@ -37,5 +37,5 @@ Genomic resources used by the the team when applying the above pipelines to *Ara
 *  [Col-CEN_v1.2_TEs_V4.bed](resources/Col-CEN_v1.2_TEs_V4.bed): Lifted Araport 11 annotation for transposable elements on *Arabidopsis thaliana* Col-CEN genome assembly.
 
 **Blacklists:**
-*  [Col-CEN_blacklist.bed](resources/TAIR10_blacklist.bed): A blacklist of aberrant regions for the *Arabidopsis thaliana* TAIR10 genome.
+*  [TAIR10_blacklist.bed](resources/TAIR10_blacklist.bed): A blacklist of aberrant regions for the *Arabidopsis thaliana* TAIR10 genome.
 *  [Col-CEN_blacklist.bed](resources/Col-CEN_blacklist.bed): A blacklist of aberrant regions for the *Arabidopsis thaliana* Col-CEN genome.
