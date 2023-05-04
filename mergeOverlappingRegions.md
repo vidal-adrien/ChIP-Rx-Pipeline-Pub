@@ -11,4 +11,4 @@ Options:
 
 ![mergeOverlappingRegions diagram](./images/mergeoverlapdiag.png)
 
-https://github.com/vidal-adrien/PNDS-pipelines/blob/37f2902eeba18af5d5d301a7f2c2201e9ce43b89/bash/mergeOverlappingRegions.sh#L1-L66
+https://github.com/vidal-adrien/ChIP-Rx-Pipeline-Pub/blob/fa432adeb401e5924a48e93255b374c6791631d5/bash/mergeOverlappingRegions.sh#L1-L66
