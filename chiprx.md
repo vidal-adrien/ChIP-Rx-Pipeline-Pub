@@ -1,4 +1,5 @@
 # ChIP-Rx pipeline
+
 A pipeline for ChIP-Rx (quantitative ChIP-seq) analysis.
 
 The following files may be needed for this pipeline:
@@ -31,11 +32,12 @@ The following programs are used in this pipeline:
   * [DESeq2](https://bioconductor.org/packages/release/bioc/html/DESeq2.html)
   * [ggplot2](https://ggplot2.tidyverse.org/)
 
-The following key terms are important to understand this page's instructions: 
-  * **Sample**: The set of sequenced reads corresponding to a single experimental sample. For experiments using pair-end sequencing, there will be two sets of reads.
-  * **Experimental condition**: Two samples, one taken before immunoprecipitation (input) and the other after (IP) constitute the data for a single experimental condition.
-  * **Biological replicate**: Biological replicates are experimental conditions meant to be identical with the same genotype and environmental variables.
-  * **Replicate group**: The set of all experimental conditions which are biological replicates of each other.
+The following key terms are important to understand this page's instructions:
+
+* **Sample**: The set of sequenced reads corresponding to a single experimental sample. For experiments using pair-end sequencing, there will be two sets of reads.
+* **Experimental condition**: Two samples, one taken before immunoprecipitation (input) and the other after (IP) constitute the data for a single experimental condition.
+* **Biological replicate**: Biological replicates are experimental conditions meant to be identical with the same genotype and environmental variables.
+* **Replicate group**: The set of all experimental conditions which are biological replicates of each other.
 
 <table align="left" width="450" cellspacing="0" cellpadding="0">
     <tr>
@@ -55,12 +57,16 @@ The studied organism's referrence genome, together with the foreign genome of th
 
 First, we need to create a combined main orgasnism + spike-in `.fasta` genome file. The chromosomes belonging to the spike-in genome should all be denoted by a common tag that will be used to more easily separate the alignments between genomes later. This can be done with the following command:
 
-```shell 
+```shell
 cat spikein_genome.bed | sed "s/>/>$SPIKE_IN_TAG/" >> reference+spikein_genome.bed
 ```
 
 The STAR manual advises using the following formula to calculate the value for the `--genomeSAindexNbases` argument of its indexing mode:
-$$\min(14,~\frac{1}{2}*log_{2}(\sum_{i=1}^{C}L_i)-1)$$
+
+$$
+\min(14,~\frac{1}{2}*log_{2}(\sum_{i=1}^{C}L_i)-1)
+
+$$
 
 Where $C$ is the number of chromosomes on the genome assembly to index and $L_i$ is the length in base pairs of a chromosome $i$.
 
@@ -77,6 +83,7 @@ bedFromFasta.pl -i reference_genome.fasta -o reference_genome.bed
 ```
 
 Here, executing some R code using Rscript allows to more easily compute the formula.
+
 ```shell
 NBASES=$(Rscript -e "writeLines(as.character(as.integer(
     min(14, log2(sum( 
@@ -86,6 +93,7 @@ NBASES=$(Rscript -e "writeLines(as.character(as.integer(
 ```
 
 Then the index is built for the STAR aligner using `--runMode genomeGenerate`. The directory given as the `--genomeDir` must be empty.
+
 ```shell
 STAR --runMode genomeGenerate \
   --runThreadN $THREADS \
@@ -96,7 +104,7 @@ STAR --runMode genomeGenerate \
 
 Some tools will require a two column file with the id and length of the chromosomes.
 
-```shell 
+```shell
 cat reference_genome.bed | cut -f 1,3 > reference_chromosome_sizes.txt
 cat reference+spikein_genome.bed | cut -f 1,3 > reference+spikein_chromosome_sizes.txt
 ```
@@ -104,7 +112,7 @@ cat reference+spikein_genome.bed | cut -f 1,3 > reference+spikein_chromosome_siz
 <a id="bt2indexing"></a>
 Finally, for the purpose of performing [contamination screening](#fastqscreen) with [fastq_screen](https://www.bioinformatics.babraham.ac.uk/projects/fastq_screen/), the the studied organism's reference genome and spike-in genome should be indexed for [bowtie2](https://bowtie-bio.sourceforge.net/bowtie2/index.shtml) using the [bowtie2-build](https://bowtie-bio.sourceforge.net/bowtie2/manual.shtml#the-bowtie2-build-indexer) command.
 
-```shell 
+```shell
 bowtie2-build -threads $THREADS reference_genome.fasta reference_genome
 ```
 
@@ -125,20 +133,22 @@ This bowtie2 indexing procedure should be repeated with the spike-in genome as w
 
 ## 2) Quality control (optional)
 
-This section presents some opional steps to perform quality checks on the  `.fastq` reads sequence files. 
+This section presents some opional steps to perform quality checks on the  `.fastq` reads sequence files.
 
 ### <a id="fastqc">2.1) Quality report</a>
 
 The [fastqc](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/) tool is used to produce quality reports on the read files. It will output a number of files in a target directory.
 
 **Example fastqc command:**
-```shell 
+
+```shell
 fastqc \
   -t $THREADS \ 
   -d tempDir/ \
   -o outputDir/ \ 
   reads.fastq
 ```
+
 To be repeated for each `.fastq` reads file in the analysis.
 
 ### <a id="fastqscreen">2.2) Contamination screening</a>
@@ -148,7 +158,8 @@ The [fastq_screen](https://www.bioinformatics.babraham.ac.uk/projects/fastq_scre
 Each of the `DATABASE` entries in the configuration file must be the path to a folder containing the index files produced by the same aligner tool as the `--aligner` argument indicates. In our case, we will use bowtie2. This is done as explained in the [reference genome indexing section](#bt2indexing). One of these `DATABASE` entries should be the index of the reference genome and another should be the index of the foreign spike-in genome.
 
 **Example fastq_screen command:**
-```shell 
+
+```shell
 fastq_screen \
     --force \
     --subset 100000 \
@@ -159,7 +170,7 @@ fastq_screen \
     sample.fastq
 ```
 
-To be repeated for each `.fastq` reads file in the analysis. 
+To be repeated for each `.fastq` reads file in the analysis.
 
 ## 3) Data processing and alignment
 
@@ -170,7 +181,8 @@ The pipeline for producing .bam map files from fastq sequencing files. For each 
 The [Trimmomatic](http://www.usadellab.org/cms/?page=trimmomatic) tool is used to trim the reads. The command is different between single-end and pair-end applications.
 
 **Example single-end trimmomatic command:**
-```shell 
+
+```shell
 trimmomatic SE 
     -threads $THREADS \
     -phred33 \
@@ -183,7 +195,8 @@ trimmomatic SE
 This tool requires the adapters sequences to be provided. The numbers trailing after the name of the adapters file are the defaults (see the [documentation](http://www.usadellab.org/cms/?page=trimmomatic) for details). The `LEADING` and `TRAILING` values are phred score threshold for trimming bases. MINLEN is the the length of reads after trimming under which the reads are discarded from the dataset.
 
 **Example pair-end trimmomatic command:**
-```shell 
+
+```shell
 trimmomatic PE \
     -threads $THREADS \
     -phred33 \
@@ -200,13 +213,13 @@ trimmomatic PE \
 
 The files marked unpaired are unnecessary and may be deleted immediately:
 
-```shell 
+```shell
 rm -f sample_*.trimmed.unpaired.fastq
 ```
 
-Optionally, the fastq files produced by trimmomatic may be compressed to save space: 
+Optionally, the fastq files produced by trimmomatic may be compressed to save space:
 
-```shell 
+```shell
 pigz -p $THREADS -v sample.trimmed.fastq
 ```
 
@@ -216,7 +229,7 @@ To control the quality of the data after trimming, the [fastqc command](#fastqc)
 
 ### 3.2) Mapping
 
-[STAR](https://github.com/alexdobin/STAR) is used to produce an alignment map. While STAR is built for RNAseq, setting the `--alignIntronMax` and ` --alignEndsType` options to `1` and `EndToEnd` respectively allows replicating the bahaviour of other aligners for ChIP-seq. 
+[STAR](https://github.com/alexdobin/STAR) is used to produce an alignment map. While STAR is built for RNAseq, setting the `--alignIntronMax` and ` --alignEndsType` options to `1` and `EndToEnd` respectively allows replicating the bahaviour of other aligners for ChIP-seq.
 
 The `--readFilesIn` argument is used to indicate the input read file. If two files are given the aligner will operate in pair-end mode. The `--readFilesCommand` argument should be adapted for the type of input (*e.g.* `cat` for an uncompressed `.fasta` file or `zcat` for a compressed `.fasta.bz` file). The `--genomeDir` argument should be the folder in which the [index](#indexing) was produced. The `--outSAMtype` argument determines the output type, in this case a sorted `.bam` file. The `--outFileNamePrefix` argument is a string that prefixes the output file names. The alignment file given the output options will be `<prefix>_Aligned.sortedByCoord.out.bam`.
 
@@ -225,6 +238,7 @@ The `--outFilterMismatchNmax` argument limits the number of allowed mismatches i
 Finally we index the alignment map with [samtools index](http://www.htslib.org/doc/samtools-index.html).
 
 **Example single-end STAR alignment command:**
+
 ```shell
 STAR --alignIntronMax 1 --alignEndsType EndToEnd --runThreadN $THREADS \
   --readFilesIn sample.trimmed.fastq --readFilesCommand zcat \
@@ -237,6 +251,7 @@ samtools index -@ $THREADS  sample_Aligned.sortedByCoord.out.bam
 ```
 
 **Example pair-end STAR alignment command:**
+
 ```shell
 STAR --alignIntronMax 1 --alignEndsType EndToEnd --runThreadN $THREADS \
   --readFilesIn sample_1.trimmed.fastq sample_2.trimmed.fastq --readFilesCommand zcat \
@@ -250,10 +265,11 @@ samtools index -@ $THREADS  sample_Aligned.sortedByCoord.out.bam
 
 ### 3.3) Sorting
 
-The [samtools sort](https://www.htslib.org/doc/samtools-sort.html) command is used to sort the bam file and it is indexed using samtools index. 
+The [samtools sort](https://www.htslib.org/doc/samtools-sort.html) command is used to sort the bam file and it is indexed using samtools index.
 
 **Example sorting command:**
-```shell 
+
+```shell
 samtools sort \
     -@ $THREADS \
     -m ${MEM_GB}g \ 
@@ -268,34 +284,36 @@ samtools index -@ $THREADS sample.sorted.bam
 
 Filters are applied using [samtools sort](https://www.htslib.org/doc/samtools-sort.html). The flag used to filter ecompasses the following:
 
-|2572||
-|:----|:--------------------------------------------|
-| = 4 | read unmapped |
-| + 8 | pair unmapped (does nothing in single-end) |
-| + 512 | read fails platform/vendor quality checks |
-| + 2048 | supplementary alignment  |
+
+| 2572   |                                            |
+| :------- | :------------------------------------------- |
+| = 4    | read unmapped                              |
+| + 8    | pair unmapped (does nothing in single-end) |
+| + 512  | read fails platform/vendor quality checks  |
+| + 2048 | supplementary alignment                    |
 
 **Example filtering command:**
 
-```shell 
+```shell
 samtools view \
     -hb \
     -@ $THREADS \
     -F 2572 \
     -o sample.sorted.filtered.bam \
     sample.sorted.bam
-    
+  
 samtools index -@ $THREADS sample.sorted.filtered.bam
 ```
 
-To be repeated for each sample in the analysis. 
+To be repeated for each sample in the analysis.
 
 ### 3.5) Deduplication
 
 Optical duplicate reads are removed using the [markdup](http://lomereiter.github.io/sambamba/docs/sambamba-markdup.html) command from sambamba.
 
 **Example deduplication script:**
-```shell 
+
+```shell
 sambamba markdup -r \
         -t $THREADS \
         sample.sorted.filtered.bam \
@@ -306,12 +324,12 @@ samtools index -@ $THREADS sample.sorted.filtered.nodup.bam
 
 To be repeated for each sample in the analysis.
 
-
 ### 3.6) Splitting reads between reference and spike-in
 
 The reads aligned to the studied organism's reference genome must be separated from the reads aligned to the foreign genome added as a Spike-In control. For this purpose, we can use the `-L` option for [samtools view](https://www.htslib.org/doc/samtools-view.html) to filter the reads using the regions that do or do not contain the tag added when adding the spike in genome to the reference genome.
 
 **Example split script:**
+
 ```shell
 samtools view -h -b -@ $THREADS 
     -L <(grep $SPIKE_IN_TAG reference+spikein_genome.bed)
@@ -336,6 +354,7 @@ To be repeated for each sample in the analysis.
 A filter by region may be applied to the alignment files in order to select unwanted regions of the genome. The `-L` option for [samtools view](https://www.htslib.org/doc/samtools-view.html) allows making a selection or regions using a `.bed` file. This step can also be used to remove chromosomes we don't want to study at all such as the mitochondrial and chloroplastic chromosomes when studying the nucleic chromosomes only. This step only needs to be applied to the reference reads alignment file.
 
 **Example masking script:**
+
 ```shell
 samtools view -hb \
     -@ $THREADS \
@@ -360,15 +379,22 @@ When using a Spike-In control to compare the sequencing depth of samples, we com
 
 First, the percentage *r* of spike-in reads in each experimental condition is computed using the input sample read counts:
 
-$$r=100*\frac{C^{Input}_{Spike-in}}{C^{Input}_{Reference}+C^{Input}_{Spike-in}}$$
+$$
+r=100*\frac{C^{Input}_{Spike-in}}{C^{Input}_{Reference}+C^{Input}_{Spike-in}}
+
+$$
 
 Then the spike-in factor is computed as follows:
 
-$$F=\frac{\alpha}{10^6*C^{IP}_{Spike-in}}$$
+$$
+F=\frac{\alpha}{10^6*C^{IP}_{Spike-in}}
+
+$$
 
 With *C* the read counts for a given sample (input or IP) and partition (reference or spike-in).
 
 **Example scaled by spike-in factor script:**
+
 ```shell
 reference_input=$(samtools view \
     -@ $THREADS \
@@ -401,13 +427,14 @@ The only map files necessary for any further work are the files produced at [the
 
 ## 4) Genomic tracks
 
-This section deals with the various types of genomic tracks we may want to build in order to visualize them on the [Integrative Genomic Browser](https://igv.org/). Genomic tracks may be in `.bedgraph` (plain text) or `.bigwig` (indexed binary) format. The [bamCoverage](https://deeptools.readthedocs.io/en/develop/content/tools/bamCoverage.html) command from [deeptools](https://deeptools.readthedocs.io/en/develop/) is used to produce them. 
+This section deals with the various types of genomic tracks we may want to build in order to visualize them on the [Integrative Genomic Browser](https://igv.org/). Genomic tracks may be in `.bedgraph` (plain text) or `.bigwig` (indexed binary) format. The [bamCoverage](https://deeptools.readthedocs.io/en/develop/content/tools/bamCoverage.html) command from [deeptools](https://deeptools.readthedocs.io/en/develop/) is used to produce them.
 
 ### 4.1) Normalized tracks
 
 RPGC normalization can be made based on an effective genome size. The bin size will determine the resolution of the track. Optionally, the track may be smoothed for the purpose of visualization using the `--smoothLength` argument.
 
 **Example normalized tracks script:**
+
 ```shell
 bamCoverage -e \
     -p $THREAD \
@@ -427,8 +454,9 @@ This can be repeated for each sample in the analysis whether input or IP.
 Ussing the [spike-in factors](#spikeinfactors) computed previously, we can rescale the tracks rather than applying a normalization.
 
 **Example scaled by spike-in factor script:**
+
 ```shell
-    
+  
 bamCoverage -e \
     -p $THREADS \
     -bs $BINSIZE \
@@ -439,15 +467,16 @@ bamCoverage -e \
     -o sample.spike-in.bigwig
 ```
 
-This can be repeated for each experimental condition in the analysis, producing one track each IP sample. 
+This can be repeated for each experimental condition in the analysis, producing one track each IP sample.
 
 ### 4.3) Tracks comparison
 
 Two tracks can be contrasted against each-other by generating a comparison track with the [bigwigCompare](https://deeptools.readthedocs.io/en/develop/content/tools/bigwigCompare.html) command from deeptools. This is useful to compare two experimental conditions or look for differences between biological replicates. The default comparisson is a log 2 fold change but other options are available with the `--operation` argument.
 
-The input tracks must have the same bin size and they should be normalized or scaled appropriately to make the comparison meaningful. 
+The input tracks must have the same bin size and they should be normalized or scaled appropriately to make the comparison meaningful.
 
 **Example tracks comparison script:**
+
 ```shell
 bigwigCompare \
     -p $THREADS \
@@ -467,26 +496,27 @@ The input tracks must have the same bin size and they should be normalized or sc
 Since the `--colors` arguments can use HTML color codes, the [color palette functions](https://stat.ethz.ch/R-manual/R-devel/library/grDevices/html/palettes.html) from the [R language](https://www.r-project.org/) are a practical way to find an appropriate color range for any number of tracks.
 
 **Example tracks summary plots script:**
+
 ```shell
 TRACKS=(sample1.bigwig sample2.bigwig ... sampleN.bigwig)
 LABELS=(sample1 sample2 ... sampleN)
-    
+  
 multiBigwigSummary bins \
     -p $THREADS \
     -out summary.npz \
     -b ${TRACKS[@]} \
     --labels ${LABELS[@]}
-    
-    
+  
+  
 COLORS=($(Rscript -e "writeLines(paste(rainbow(${#TRACKS[@]}), collapse=' '))"))
-    
+  
 plotPCA \
     --transpose \
     --corData summary.npz \
     --plotFile PCA.pdf \
     --plotFileFormat pdf \
     --colors ${COLORS[@]}
-    
+  
 plotCorrelation \ 
     --corData summary.npz \
     --corMethod spearman \
@@ -515,9 +545,10 @@ Peak calling is used to discover genomic regions that are highly enriched in all
 
 ### 5.1) Narrow peaks
 
-The default mode is to call narrow peaks. This mode is sufficient for most applications. 
+The default mode is to call narrow peaks. This mode is sufficient for most applications.
 
 **Example single-end narrow peak calling command:**
+
 ```shell
 macs2 callpeak \
     -q 0.01 \
@@ -530,6 +561,7 @@ macs2 callpeak \
 ```
 
 **Example pair-end narrow peak calling command:**
+
 ```shell
 macs2 callpeak \
     -f BAMPE \
@@ -544,9 +576,10 @@ macs2 callpeak \
 
 ### 5.2) Broad peaks
 
-Broad peak calling is preferable for studying ligands that cover large genomic regions such as histone variants. It does the same peak detection as the narrow peak mode but then attempts to merge nearby highly enriched regions into broad regions. 
+Broad peak calling is preferable for studying ligands that cover large genomic regions such as histone variants. It does the same peak detection as the narrow peak mode but then attempts to merge nearby highly enriched regions into broad regions.
 
 **Example single-end broad peak calling command:**
+
 ```shell
 macs2 callpeak \
     --broad \
@@ -561,6 +594,7 @@ macs2 callpeak \
 ```
 
 **Example pair-end broad peak calling command:**
+
 ```shell
 macs2 callpeak \
     -f BAMPE \
@@ -586,6 +620,7 @@ When peaks are called on multiple biological replicates of the same condition, w
 Between two replicates, this can be done, using [this script](mergeOverlappingRegions.md), which selects the regions out of each set that intersect any region of the other set so that a minimum proportion of either region is overlapped by the other and merges any overlapping regions out of the resulting selection. The value of the `-l` argument should be a number between 0 and 1.
 
 **Example command to merge overlapping peaks out of two replicates:**
+
 ```shell
 mergeOverlappingRegions.sh \
     -a sample_rep1_peaks.narrowPeak \
@@ -599,6 +634,7 @@ mergeOverlappingRegions.sh \
 Using the [bedtools intersect](https://bedtools.readthedocs.io/en/latest/content/tools/intersect.html) command, we can discover which genomic regions are covered by peaks. This requires the use of a `.bed` file of the genomic regions of interest. By using the `-wo` option and filtering with `awk`, we can remove intersections under a certain length in base pair. The -sorted option makes the operation more efficient but requires the input files to be sorted by position (use [bedtools sort](https://bedtools.readthedocs.io/en/latest/content/tools/sort.html) if necessary). The peak files can already be read as sorted `.bed` files.
 
 **Example peak annotation script:**
+
 ```shell
 bedtools intersect -sorted -wo \
     -a regions.bed \
@@ -629,15 +665,16 @@ Metaplots are plots that show the average alignment coverage signal profile on a
 
 ### 6.1) Compute matrix
 
- The [deeptools](https://deeptools.readthedocs.io/en/develop/) toolkit can be used to make Metaplots. Before roducing any plots, a matrix must be computed between the `.bigwig` coverage tracks to compare and `.bed` genomic region files to study. Any number of tracks and region sets can be loaded in.
+The [deeptools](https://deeptools.readthedocs.io/en/develop/) toolkit can be used to make Metaplots. Before roducing any plots, a matrix must be computed between the `.bigwig` coverage tracks to compare and `.bed` genomic region files to study. Any number of tracks and region sets can be loaded in.
 
-For more relevant comparisons, it may be preferable to limit the region sets to only include regions considered as marked in the [peak annotation](#annotation). 
+For more relevant comparisons, it may be preferable to limit the region sets to only include regions considered as marked in the [peak annotation](#annotation).
 
 **Example command to compute the matrix:**
+
 ```shell
 TRACKS=(sample1.bigwig sample2.bigwig ... sampleN.bigwig)
 REGIONS=(regions1.bed regions2.bed ... regionsN.bed)
-    
+  
 computeMatrix scale-regions -p $THREADS \
     -a 2000 -b 2000 --regionBodyLength 2000 
     --sortUsing median --sortRegions descend \
@@ -653,11 +690,12 @@ From the matrix file, we can generate profile plots in several configurations. T
 Since the `--colors` arguments can use HTML color codes, the [color palette functions](https://stat.ethz.ch/R-manual/R-devel/library/grDevices/html/palettes.html) from the [R language](https://www.r-project.org/) are a practical way to find an appropriate color range for any number of tracks.
 
 **Example profile plot command for comparing average gene profiles of different goups on each track:**
+
 ```shell
 COLORS=($(Rscript -e "writeLines(paste(rainbow(${#TRACKS[@]}), collapse=' '))"))
 LABELS_SAMPLES=(sample1 sample2 ... sampleN)
 LABELS_SAMPLES=(genes1 genes2 ... genesN)
-    
+  
 plotProfile --dpi 300 --averageType mean \
     --plotTitle "Average genes profile" \
     --startLabel "TSS"  --endLabel "TES" \
@@ -670,6 +708,7 @@ plotProfile --dpi 300 --averageType mean \
 ```
 
 **Example profile plot command for comparing average gene profiles of different tracks for each group:**
+
 ```shell
 plotProfile --dpi 300 --averageType mean --perGroup \
     --plotTitle "Average genes profile" \
@@ -687,6 +726,7 @@ plotProfile --dpi 300 --averageType mean --perGroup \
 From the same matrix file, we can produce clustered heatmaps of the genomic regions along the metaplot profiles of the different samples.
 
 **Example genes clustering heatmap:**
+
 ```shell
 plotHeatmap --dpi 300 --averageType mean \
     --plotTitle "Clustering heat map of genes" \
@@ -697,6 +737,7 @@ plotHeatmap --dpi 300 --averageType mean \
     --matrixFile matrix.tab.gz \
     --outFileName ${prefix}_heatmap.png
 ```
+
 <table align="left" width="450" cellspacing="0" cellpadding="0">
     <tr>
         <td><img src="./images/pipeline_diagrams/diagram_chiprx_3_differential.png" align="left" width="450px"></td>
@@ -711,7 +752,7 @@ plotHeatmap --dpi 300 --averageType mean \
 
 ## <a id="diff">7) Differential analysis</a>
 
-The [DESeq2](https://bioconductor.org/packages/release/bioc/html/DESeq2.html) package for the [R language](https://www.r-project.org/) can be used to make a differential analysis of the coverage of different regions of the genome (genes, Transcription Elements, etc.) by aligned reads. The following packages also need to be loaded for some of code examples: [gplots](https://cran.r-project.org/web/packages/gplots/), [RColorBrewer](https://cran.r-project.org/web/packages/RColorBrewer/index.html), [ggplot2](https://ggplot2.tidyverse.org/). 
+The [DESeq2](https://bioconductor.org/packages/release/bioc/html/DESeq2.html) package for the [R language](https://www.r-project.org/) can be used to make a differential analysis of the coverage of different regions of the genome (genes, Transcription Elements, etc.) by aligned reads. The following packages also need to be loaded for some of code examples: [gplots](https://cran.r-project.org/web/packages/gplots/), [RColorBrewer](https://cran.r-project.org/web/packages/RColorBrewer/index.html), [ggplot2](https://ggplot2.tidyverse.org/).
 
 ### 7.1) Multiple maps coverage
 
@@ -720,9 +761,10 @@ Before going to R, the coverage of regions of interest by aligned reads must be 
 Only the regions which have been marked in the [peak annotation](#annotation) are relevant and thus the coverage only needs to be measured on a `.bed` file of the regions marked on at least one sample.
 
 **Example bedtools multicov command:**
+
 ```shell
 BAMS=(sample1.bam sample2.bam ... sampleN.bam)
-    
+  
 bedtools multicov \
     -bams ${BAMS[@]} \
     -bed all_marked_regions.bed \
@@ -734,6 +776,7 @@ bedtools multicov \
 First, a table describing the experimental design has to be prepared. This should at least contain the identifier for the samples and variables describing the biological replicates.
 
 **Example experimental design table (R console output):**
+
 ```
 sampleName  rep  group
 A_rep1      rep1 A
@@ -832,7 +875,7 @@ The DESeq2 can perform a Principal Component Analysis that is then plotted using
 
 ```R
 PCA_data <- DESeq2::plotPCA(rld, ntop=nrow(rld), intgroup=c("group", "rep"), returnData=TRUE)
-    
+  
 ggplot2::ggsave("/PCA_protein_v_sample.png",
     ggplot2::ggplot(PCA_data, ggplot2::aes(PC1, PC2, color=group.1 , shape=rep)) +
         ggplot2::geom_point(size=3) +
@@ -853,7 +896,7 @@ The following example extracts the results from model build on genes + TEs for g
 ```R
 g1 <- "A"
 g2 <- "B"
-    
+  
 compId <- paste0(g1, ".", g2)
 sel <- coverage$type == "gene"
 res <- DESeq2::results(dds, contrast=c("group", g1, g2), pAdjustMethod="fdr")[sel, ]
@@ -863,6 +906,7 @@ ids <- coverage$name[sel][p.order]
 ```
 
 We can output a table of the log fold change on all regions.
+
 ```R
 write.table(
     x=data.frame(cbind(id=ids, res))
@@ -901,4 +945,3 @@ legend(
 )
 dev.off()
 ```
-
