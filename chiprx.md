@@ -62,11 +62,7 @@ cat spikein_genome.bed | sed "s/>/>$SPIKE_IN_TAG/" >> reference+spikein_genome.b
 ```
 
 The STAR manual advises using the following formula to calculate the value for the `--genomeSAindexNbases` argument of its indexing mode:
-
-$$
-\min(14,~\frac{1}{2}*log_{2}(\sum_{i=1}^{C}L_i)-1)
-
-$$
+$$\min(14,~\frac{1}{2}*log_{2}(\sum_{i=1}^{C}L_i)-1)$$
 
 Where $C$ is the number of chromosomes on the genome assembly to index and $L_i$ is the length in base pairs of a chromosome $i$.
 
