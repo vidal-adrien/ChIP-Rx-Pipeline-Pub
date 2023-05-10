@@ -427,7 +427,7 @@ This section deals with the various types of genomic tracks we may want to build
 
 ### 4.1) Normalized tracks
 
-RPGC normalization can be made based on an effective genome size. The bin size will determine the resolution of the track. Optionally, the track may be smoothed for the purpose of visualization using the `--smoothLength` argument.
+RPKM normalization can be made based on an effective genome size. The bin size will determine the resolution of the track. Optionally, the track may be smoothed for the purpose of visualization using the `--smoothLength` argument.
 
 **Example normalized tracks script:**
 
@@ -436,12 +436,10 @@ bamCoverage -e \
     -p $THREAD \
     -bs $BINSIZE \
     -of bigwig \
-    --normalizeUsing RPGC \
-    --effectiveGenomeSize $GENOME_SIZE \
+    --normalizeUsing RPKM \
     --smoothLength $SMOOTH \
     -b sample.reference.sorted.filtered.masked.nodup.bam \
-    -o sample.RPGC.bigwig
-```
+    -o sample.RPKM
 
 This can be repeated for each sample in the analysis whether input or IP.
 
