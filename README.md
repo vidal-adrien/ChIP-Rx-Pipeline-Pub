@@ -15,11 +15,11 @@ Step-by-step guides to genomic analysis pipelines used by the team.
 ## Custom tools
 Scripts used in the above guides.
 
-[bedFromFasta.pl:](bedFromFasta.md): Perl script. Creates a `.bed` table of the full length of the sequences from a `.fasta` file.
+[bedFromFasta.pl](bedFromFasta.md): Perl script. Creates a `.bed` table of the full length of the sequences from a `.fasta` file.
 
 [bedFromGff.pl](bedFromGff.md): Perl Script. Creates a `.bed` table of the regions from a `.gff` file. With the possibility to specify which tag contains the ID, to filter by feature type and to enforce ID uniqueness.
 
-[mergeOverlappingRegions.sh](mergeOverlappingRegions.md): Bash script. Searches for overlaps of the genomic regions of the between two files and generates merged regions bed file out of selected regions.
+[mergeOverlappingRegions.sh](mergeOverlappingRegions.md): Bash script. Uses a comination of bedtools functions to search for overlaps of the genomic regions of the between two files and generate merged regions bed file out of selected regions.
 
 ## Genomics resources
 
@@ -31,9 +31,9 @@ Genomic resources used by the the team when applying the above pipelines to *Ara
 *  [⇗Download page](https://www.ncbi.nlm.nih.gov/assembly/GCF_000001215.4/) for *Drosophila melanogaster* release 6 genome assembly.
 
 **Annotation:**
-*  [Araport11_GFF3.gene.201606.bed](resources/Araport11_GFF3.gene.201606.bed): Araport 11 annotation for genes on *Arabidopsis thaliana* TAIR10 genome assembly.
-*  [Araport11_GFF3.TAIR10.transposable_element.201606.bed](resources/Araport11_GFF3.TAIR10.transposable_element.201606.bed): Araport 11 annotation for transposable elements on *Arabidopsis thaliana* TAIR10 genome assembly.
-*  [Col-CEN_v1.2_genes.araport11.gene.bed](resources/Col-CEN_v1.2_genes.araport11.gene.bed): Lifted Araport 11 annotation for genes on *Arabidopsis thaliana* Col-CEN genome assembly.
+*  [Araport11_GFF3.gene.201606.bed](resources/Araport11_GFF3.gene.201606.bed): Araport 11 annotation for genes on *Arabidopsis thaliana* TAIR10 genome assembly as a `.bed` file. Converted from the [https://www.arabidopsis.org/download_files/Genes/Araport11_genome_release/archived/Araport11_GFF3_genes_transposons.Jun2016.gff.gz](june 2016 annotation).
+*  [Araport11_GFF3.TAIR10.transposable_element.201606.bed](resources/Araport11_GFF3.TAIR10.transposable_element.201606.bed): Araport 11 annotation for transposable elements on *Arabidopsis thaliana* TAIR10 genome assembly. Converted from the [https://www.arabidopsis.org/download_files/Genes/Araport11_genome_release/archived/Araport11_GFF3_genes_transposons.Jun2016.gff.gz](june 2016 annotation).
+*  [Col-CEN_v1.2_genes.araport11.gene.bed](resources/Col-CEN_v1.2_genes.araport11.gene.bed): Lifted Araport 11 annotation for genes on *Arabidopsis thaliana* Col-CEN genome assembly. Converted from the [https://www.arabidopsis.org/download_files/Genes/Col-CEN%20genome%20assembly%20release/ColCEN_GENES_Araport11.gff3.gz](`.gff3` annotation).
 *  [Col-CEN_v1.2_TEs_V4.bed](resources/Col-CEN_v1.2_TEs_V4.bed): Lifted Araport 11 annotation for transposable elements on *Arabidopsis thaliana* Col-CEN genome assembly.
 
 **Blacklists:**
