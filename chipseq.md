@@ -317,17 +317,29 @@ This section deals with the various types of genomic tracks we may want to build
 ### 4.1) Normalized tracks
 
 RPKM normalization can be applied to generate comparable genomic tracks. The bin size will determine the resolution of the track. Optionally, the track may be smoothed for the purpose of visualization using the `--smoothLength` argument.
+The commands for single-end or paired-end differ in that the `-e` (extend reads) option must be followed with a value for the fragents length for single-end cases while this is automaticaly determined by th eread mates in paired-end cases.
 
-**Example normalized tracks script:**
-
+**Example single-end normalized tracks script:**
 ```shell
-bamCoverage -e \
+bamCoverage -e $FRAGLENGTH \
     -p $THREAD \
     -bs $BINSIZE \
     -of bigwig \
     --normalizeUsing RPKM \
     --smoothLength $SMOOTH \
-    -b sample.reference.sorted.filtered.masked.nodup.bam \
+    -b sample.sorted.filtered.masked.nodup.bam \
+    -o sample.RPKM.bigwig
+```
+
+**Example paired-end normalized tracks script:**
+```shell
+bamCoverage -e $FRAGLENGTH \
+    -p $THREAD \
+    -bs $BINSIZE \
+    -of bigwig \
+    --normalizeUsing RPKM \
+    --smoothLength $SMOOTH \
+    -b sample.sorted.filtered.masked.nodup.bam \
     -o sample.RPKM.bigwig
 ```
 

@@ -6,7 +6,7 @@ The following files may be needed for this pipeline:
 
 * The reads sequencing data in `.fastq` format for each sample. May be compressed as a `.gz` archive.
   * For each experimental condition, both an input (sequencing before immuno-precipitation) and IP (sequencing after immuno-precipitation) are needed.
-  * In the case of pair-end sequencing, two files per sample with matching read IDs are needed.
+  * In the case of paired-end sequencing, two files per sample with matching read IDs are needed.
 * The sequences of potential contaminants to control for in `.fasta` format (optional).
 * The sequences of the sequencing adapters in `.fasta` format.
 * The sequence of the reference genome of teh studied organism in `.fasta` format.
@@ -36,7 +36,7 @@ The following programs are used in this pipeline:
 
 The following key terms are defined as such for the purpose of this page's instructions:
 
-* **Sample**: The set of sequenced reads corresponding to a single experimental sample. For experiments using pair-end sequencing, there will be two sets of reads.
+* **Sample**: The set of sequenced reads corresponding to a single experimental sample. For experiments using paired-end sequencing, there will be two sets of reads.
 * **Experimental condition**: Two samples, one taken before immunoprecipitation (input) and the other after (IP) constitute the data for a single experimental condition.
 * **Biological replicate**: Biological replicates are experimental conditions meant to be identical with the same genotype and environmental variables.
 * **Replicate group**: The set of all experimental conditions which are biological replicates of each other.
@@ -174,11 +174,11 @@ To be run for each `.fastq` reads file in the analysis.
 
 ## 3) Data processing and alignment
 
-The pipeline for producing .bam map files from fastq sequencing files. For each map to produce, one fastq file is needed for single-end mapping while two files (one for the first mate and one for the second mate sequencing) are required for pair-end mapping. The input files may used in a compressed `.gz` archive.
+The pipeline for producing .bam map files from fastq sequencing files. For each map to produce, one fastq file is needed for single-end mapping while two files (one for the first mate and one for the second mate sequencing) are required for paired-end mapping. The input files may used in a compressed `.gz` archive.
 
 ### 3.1) Read trimming
 
-The [Trimmomatic](http://www.usadellab.org/cms/?page=trimmomatic) tool is used to trim the reads. The command is different between single-end and pair-end applications.
+The [Trimmomatic](http://www.usadellab.org/cms/?page=trimmomatic) tool is used to trim the reads. The command is different between single-end and paired-end applications.
 
 **Example single-end trimmomatic command:**
 
@@ -194,7 +194,7 @@ trimmomatic SE \
 
 This tool requires the adapters sequences to be provided. The numbers trailing after the name of the adapters file are the defaults (see the [documentation](http://www.usadellab.org/cms/?page=trimmomatic) for details). The `LEADING` and `TRAILING` values are phred score threshold for trimming bases. MINLEN is the the length of reads after trimming under which the reads are discarded from the dataset.
 
-**Example pair-end trimmomatic command:**
+**Example paired-end trimmomatic command:**
 
 ```shell
 trimmomatic PE \
@@ -231,7 +231,7 @@ To control the quality of the data after trimming, the [fastqc command](#fastqc)
 
 [STAR](https://github.com/alexdobin/STAR) is used to map reads to the genome. While STAR is built for RNAseq, setting the `--alignIntronMax` and ` --alignEndsType` options to `1` and `EndToEnd` respectively allows replicating the behaviour of other aligners for ChIP-seq.
 
-The `--readFilesIn` argument is used to indicate the input read file. If two files are given the aligner will operate in pair-end mode. The `--readFilesCommand` argument should be adapted for the type of input (*e.g.* `cat` for an uncompressed `.fasta` file or `zcat` for a compressed `.fasta.bz` file). The `--genomeDir` argument should be the folder in which the [index](#indexing) was produced. The `--outSAMtype` argument determines the output type, in this case a sorted `.bam` file. The `--outFileNamePrefix` argument is a string that prefixes the output file names. The alignment file given the output options will be `<prefix>_Aligned.sortedByCoord.out.bam`.
+The `--readFilesIn` argument is used to indicate the input read file. If two files are given the aligner will operate in paired-end mode. The `--readFilesCommand` argument should be adapted for the type of input (*e.g.* `cat` for an uncompressed `.fasta` file or `zcat` for a compressed `.fasta.bz` file). The `--genomeDir` argument should be the folder in which the [index](#indexing) was produced. The `--outSAMtype` argument determines the output type, in this case a sorted `.bam` file. The `--outFileNamePrefix` argument is a string that prefixes the output file names. The alignment file given the output options will be `<prefix>_Aligned.sortedByCoord.out.bam`.
 
 The `--outFilterMismatchNmax` argument limits the number of allowed mismatches in each alignment. The `--outSAMmultNmax` determines how many alignments may be given for each read and `--outMultimapperOrder` determines how alignments are picked out of others with equal quality. Finally, the `--outFilterMultimapNmax` may be added to determine for how many alignments a multimapping read will be filtered out entirely. Note that this filter is applied by default with a value of 10 even if the argument is not specified. More information can be found in the [STAR manual](https://raw.githubusercontent.com/alexdobin/STAR/master/doc/STARmanual.pdf).
 
@@ -250,7 +250,7 @@ STAR --alignIntronMax 1 --alignEndsType EndToEnd --runThreadN $THREADS \
 samtools index -@ $THREADS  sample_Aligned.sortedByCoord.out.bam
 ```
 
-**Example pair-end STAR alignment command:**
+**Example paired-end STAR alignment command:**
 
 ```shell
 STAR --alignIntronMax 1 --alignEndsType EndToEnd --runThreadN $THREADS \
@@ -430,11 +430,11 @@ The following instructions will describe how to make both normalized tracks and 
 ### 4.1) Normalized tracks
 
 RPKM normalization can be applied to generate comparable genomic tracks. The bin size will determine the resolution of the track. Optionally, the track may be smoothed for the purpose of visualization using the `--smoothLength` argument.
+The commands for single-end or paired-end differ in that the `-e` (extend reads) option must be followed with a value for the fragents length for single-end cases while this is automaticaly determined by th eread mates in paired-end cases.
 
-**Example normalized tracks script:**
-
+**Example single-end normalized tracks script:**
 ```shell
-bamCoverage -e \
+bamCoverage -e $FRAGLENGTH \
     -p $THREAD \
     -bs $BINSIZE \
     -of bigwig \
@@ -442,15 +442,40 @@ bamCoverage -e \
     --smoothLength $SMOOTH \
     -b sample.reference.sorted.filtered.masked.nodup.bam \
     -o sample.RPKM.bigwig
+```
+
+**Example paired-end normalized tracks script:**
+```shell
+bamCoverage -e $FRAGLENGTH \
+    -p $THREAD \
+    -bs $BINSIZE \
+    -of bigwig \
+    --normalizeUsing RPKM \
+    --smoothLength $SMOOTH \
+    -b sample.reference.sorted.filtered.masked.nodup.bam \
+    -o sample.RPKM.bigwig
+```
 
 This can be repeated for each sample in the analysis whether input or IP.
-```
+
 
 ### 4.2) Tracks scaled by spike-in factor
 
 Ussing the [spike-in factors](#spikeinfactors) computed previously, we can rescale the tracks rather than applying a normalization.
 
-**Example scaled by spike-in factor script:**
+**Example single-end scaled by spike-in factor script:**
+```shell
+bamCoverage -e $FRAGLENGTH \
+    -p  $THREADS \
+    -bs $BINSIZE \
+    -of bigwig \
+    --scaleFactor $FACTOR \
+    --smoothLength $SMOOTH \
+    -b sample.reference.sorted.filtered.masked.nodup.bam \
+    -o sample.spike-in.bigwig
+```
+
+**Example paired-end scaled by spike-in factor script:**
 ```shell
 bamCoverage -e \
     -p  $THREADS \
@@ -536,7 +561,7 @@ Alternatively to using `.bigwig` tracks, the [multiBamSummary](https://deeptools
 
 ## 5) Peak calling
 
-Peak calling is used to discover genomic regions that are highly enriched in alligned reads. It is done using the [macs2 callpeak](https://hbctraining.github.io/Intro-to-ChIPseq/lessons/05_peak_calling_macs.html) command. The input and IP samples for an experimental condition are required. The command is different between single-end and pair-end applications. A p-value threshold (`-q` argument) of 0.01 is a good starting point but it must be evaluated empirically for each study.
+Peak calling is used to discover genomic regions that are highly enriched in alligned reads. It is done using the [macs2 callpeak](https://hbctraining.github.io/Intro-to-ChIPseq/lessons/05_peak_calling_macs.html) command. The input and IP samples for an experimental condition are required. The command is different between single-end and paired-end applications. A p-value threshold (`-q` argument) of 0.01 is a good starting point but it must be evaluated empirically for each study.
 
 ### 5.1) Narrow peaks
 
@@ -555,7 +580,7 @@ macs2 callpeak \
     -n sample
 ```
 
-**Example pair-end narrow peak calling command:**
+**Example paired-end narrow peak calling command:**
 
 ```shell
 macs2 callpeak \
@@ -588,7 +613,7 @@ macs2 callpeak \
     -n sample
 ```
 
-**Example pair-end broad peak calling command:**
+**Example paired-end broad peak calling command:**
 
 ```shell
 macs2 callpeak \
