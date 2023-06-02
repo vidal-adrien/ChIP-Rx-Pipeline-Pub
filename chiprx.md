@@ -263,24 +263,7 @@ STAR --alignIntronMax 1 --alignEndsType EndToEnd --runThreadN $THREADS \
 samtools index -@ $THREADS  sample_Aligned.sortedByCoord.out.bam
 ```
 
-### 3.3) Sorting
-
-The [samtools sort](https://www.htslib.org/doc/samtools-sort.html) command is used to sort the bam file and it is indexed using samtools index.
-
-**Example sorting command:**
-
-```shell
-samtools sort \
-    -@ $THREADS \
-    -m ${MEM_GB}g \ 
-    -T tempDir/ \
-    -o sample.sorted.bam \
-    sample.bam \
-  
-samtools index -@ $THREADS sample.sorted.bam
-```
-
-### 3.4) Reads filtering
+### 3.3) Reads filtering
 
 Filters are applied using [samtools sort](https://www.htslib.org/doc/samtools-sort.html). The flag used to filter ecompasses the following:
 
@@ -299,15 +282,15 @@ samtools view \
     -hb \
     -@ $THREADS \
     -F 2572 \
-    -o sample.sorted.filtered.bam \
-    sample.sorted.bam
+    -o sample.filtered.bam \
+    sample_Aligned.sortedByCoord.out.bam
   
-samtools index -@ $THREADS sample.sorted.filtered.bam
+samtools index -@ $THREADS sample.filtered.bam
 ```
 
 To be run for each sample in the analysis.
 
-### 3.5) Deduplication
+### 3.4) Deduplication
 
 Optical duplicate reads are removed using the [markdup](http://lomereiter.github.io/sambamba/docs/sambamba-markdup.html) command from sambamba.
 
@@ -316,40 +299,40 @@ Optical duplicate reads are removed using the [markdup](http://lomereiter.github
 ```shell
 sambamba markdup -r \
         -t $THREADS \
-        sample.sorted.filtered.bam \
-        sample.sorted.filtered.nodup.bam \
+        sample.filtered.bam \
+        sample.filtered.nodup.bam \
   
-samtools index -@ $THREADS sample.sorted.filtered.nodup.bam
+samtools index -@ $THREADS sample.filtered.nodup.bam
 ```
 
 To be run for each sample in the analysis.
 
-### 3.6) Splitting reads between reference and spike-in
+### 3.5) Splitting reads between reference and spike-in
 
 The reads aligned to the studied organism's reference genome must be separated from the reads aligned to the foreign genome added as a Spike-In control. For this purpose, we can use the `-L` option for [samtools view](https://www.htslib.org/doc/samtools-view.html) to filter the reads using the regions that do or do not contain the tag added when adding the spike in genome to the reference genome.
 
 **Example split script:**
 
 ```shell
-samtools view -h -b -@ $THREADS \
-    -L <(grep $SPIKE_IN_TAG reference+spikein_genome.bed) \s
-    sample.sorted.filtered.bam \
-> sample.spikein.sorted.filtered.nodup.bam
-  
-samtools index -@ $THREADS sample.spikein.sorted.filtered.nodup.bam
-  
-samtools view -h -b -@ $THREADS \
-    -L <(grep -v $SPIKE_IN_TAG reference+spikein_genome.bed) \
-    sample.sorted.filtered.bam \
-| sed \"s/${SPIKE_IN_TAG}//" \
-> sample.reference.sorted.filtered.nodup.bam
-  
-samtools index -@ $THREADS sample.reference.sorted.filtered.nodup.bam
+samtools view -h -@ $THREADS sample.filtered.bam \
+    | grep -v ${spikeInTag} \
+    | samtools  view -@ $THREADS -b \
+    > sample.reference.filtered.nodup.bam
+    
+samtools index -@ $THREADS sample.reference.filtered.nodup.bam
+
+samtools view -h -@ $THREADS sample.filtered.bam \
+    | grep ${spikeInTag} \
+    | sed "s/${spikeInTag}//" \
+    | samtools view -@ $THREADS -b \
+    > sample.spikein.filtered.nodup.bam
+
+samtools index -@ $THREADS sample.spikein.filtered.nodup.bam
 ```
 
 To be run for each sample in the analysis.
 
-### <a id="masking">3.7) Masking genomic regions</a>
+### <a id="masking">3.6) Masking genomic regions</a>
 
 Some problematic regions of the genome can be filtered out from the alignment files.  The `-L` option of [samtools view](https://www.htslib.org/doc/samtools-view.html) allows making a selection of regions using a `.bed` file. This step can also be used to remove chromosomes we don't want to study at all such as the mitochondrial and chloroplastic chromosomes when studying the nucleic chromosomes only.
 
@@ -359,10 +342,10 @@ Some problematic regions of the genome can be filtered out from the alignment fi
 samtools view -h -b \
     -@ $THREADS \
     -L selection.bed \
-    -o sample.reference.sorted.filtered.nodup.masked.bam \
-    sample.reference.sorted.filtered.nodup.bam \
+    -o sample.reference.filtered.nodup.masked.bam \
+    sample.reference.filtered.nodup.bam \
   
-samtools index -@ $THREADS sample.reference.sorted.filtered.nodup.masked.bam
+samtools index -@ $THREADS sample.reference.filtered.nodup.masked.bam
 ```
 
 Only positive selections may be performed with this command. To remove regions listed in a blacklist bed file, an inverse of that bed file must be generated first. Using bedtools substract, the inversion can be made in reference to a .bed of the whole reference genome:
@@ -373,7 +356,7 @@ bedtools subtract -a reference_genome.bed -b blacklist.bed > selection.bed
 
 To be run for each sample in the analysis.
 
-### <a id="spikeinfactors">3.8) Spike-In factors</a>
+### <a id="spikeinfactors">3.7) Spike-In factors</a>
 
 When using a Spike-In control to compare the sequencing depth of samples, we compute a scaling factor for each sample. To compute the scaling factor, the input and IP samples for an experimental condition are required, each having been split into their main organism and spike-in parts.
 
@@ -392,19 +375,19 @@ With *C* the read counts for a given sample (input or IP) and partition (referen
 ```shell
 reference_input=$(samtools view \
     -@ $THREADS \
-    -c input_sample.reference.sorted.filtered.masked.nodup.bam \
+    -c input_sample.reference.filtered.masked.nodup.bam \
 )
 reference_IP=$(samtools view \
     -@ $THREADS \
-    -c IP_sample.reference.sorted.filtered.masked.nodup.bam \
+    -c IP_sample.reference.filtered.masked.nodup.bam \
 )
 spikein_input=$(samtools view \
     -@ $THREADS \
-    -c input_sample.spikein.sorted.filtered.nodup.bam \
+    -c input_sample.spikein.filtered.nodup.bam \
 )
 spikein_IP=$(samtools view \
     -@ $THREADS \
-    -c IP_sample.spikein.sorted.filtered.nodup.bam \
+    -c IP_sample.spikein.filtered.nodup.bam \
 )
 
 (( r = 100 * spikein_input / (main_input + spikein_input) ))
@@ -413,7 +396,7 @@ spikein_IP=$(samtools view \
 
 To be run for each experimental condition in the analysis.
 
-### 3.9) Cleaning up (optional)
+### 3.8) Cleaning up (optional)
 
 The pipeline, as presented, creates many heavy intermediate files which allows for easy backtracking but is not economical in terms of disk space.
 
@@ -440,7 +423,7 @@ bamCoverage -e $FRAGLENGTH \
     -of bigwig \
     --normalizeUsing RPKM \
     --smoothLength $SMOOTH \
-    -b sample.reference.sorted.filtered.masked.nodup.bam \
+    -b sample.reference.filtered.masked.nodup.bam \
     -o sample.RPKM.bigwig
 ```
 
@@ -452,7 +435,7 @@ bamCoverage -e $FRAGLENGTH \
     -of bigwig \
     --normalizeUsing RPKM \
     --smoothLength $SMOOTH \
-    -b sample.reference.sorted.filtered.masked.nodup.bam \
+    -b sample.reference.filtered.masked.nodup.bam \
     -o sample.RPKM.bigwig
 ```
 
@@ -471,7 +454,7 @@ bamCoverage -e $FRAGLENGTH \
     -of bigwig \
     --scaleFactor $FACTOR \
     --smoothLength $SMOOTH \
-    -b sample.reference.sorted.filtered.masked.nodup.bam \
+    -b sample.reference.filtered.masked.nodup.bam \
     -o sample.spike-in.bigwig
 ```
 
@@ -483,7 +466,7 @@ bamCoverage -e \
     -of bigwig \
     --scaleFactor $FACTOR \
     --smoothLength $SMOOTH \
-    -b sample.reference.sorted.filtered.masked.nodup.bam \
+    -b sample.reference.filtered.masked.nodup.bam \
     -o sample.spike-in.bigwig
 ```
 
@@ -575,8 +558,8 @@ macs2 callpeak \
     --bdg \
     -g $GENOME_SIZE \
     --tempdir tempDir/ \
-    -t IP_sample.reference.sorted.filtered.masked.nodup.bam \
-    -c input_sample.reference.sorted.filtered.masked.nodup.bam \
+    -t IP_sample.reference.filtered.masked.nodup.bam \
+    -c input_sample.reference.filtered.masked.nodup.bam \
     -n sample
 ```
 
@@ -589,8 +572,8 @@ macs2 callpeak \
     --bdg \
     -g $GENOME_SIZE \
     --tempdir tempDir/ \
-    -t IP_sample.reference.sorted.filtered.masked.nodup.bam \
-    -c input_sample.reference.sorted.filtered.masked.nodup.bam \
+    -t IP_sample.reference.filtered.masked.nodup.bam \
+    -c input_sample.reference.filtered.masked.nodup.bam \
     -n sample
 ```
 
@@ -608,8 +591,8 @@ macs2 callpeak \
     --bdg \
     -g $GENOME_SIZE \
     --tempdir tempDir/ \
-    -t IP_sample.reference.sorted.filtered.masked.nodup.bam \
-    -c input_sample.reference.sorted.filtered.masked.nodup.bam \
+    -t IP_sample.reference.filtered.masked.nodup.bam \
+    -c input_sample.reference.filtered.masked.nodup.bam \
     -n sample
 ```
 
@@ -624,8 +607,8 @@ macs2 callpeak \
     --bdg \
     -g $GENOME_SIZE \
     --tempdir tempDir/ \
-    -t IP_sample.reference.sorted.filtered.masked.nodup.bam \
-    -c input_sample.reference.sorted.filtered.masked.nodup.bam \
+    -t IP_sample.reference.filtered.masked.nodup.bam \
+    -c input_sample.reference.filtered.masked.nodup.bam \
     -n sample
 ```
 

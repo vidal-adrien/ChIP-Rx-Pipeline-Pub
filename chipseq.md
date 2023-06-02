@@ -222,7 +222,7 @@ STAR --alignIntronMax 1 --alignEndsType EndToEnd --runThreadN $THREADS \
   --outSAMtype BAM SortedByCoordinate --outFileNamePrefix sample \
   --outFilterMismatchNmax 2 --outSAMmultNmax 1 --outMultimapperOrder Random
 
-samtools index -@ $THREADS  sample_Aligned.sortedByCoord.out.bam
+samtools index -@ $THREADS sample_Aligned.sortedByCoord.out.bam
 ```
 
 **Example pair-end STAR alignment command:**
@@ -234,7 +234,7 @@ STAR --alignIntronMax 1 --alignEndsType EndToEnd --runThreadN $THREADS \
   --outSAMtype BAM SortedByCoordinate --outFileNamePrefix sample \
   --outFilterMismatchNmax 2 --outSAMmultNmax 1 --outMultimapperOrder Random
 
-samtools index -@ $THREADS  sample_Aligned.sortedByCoord.out.bam
+samtools index -@ $THREADS sample_Aligned.sortedByCoord.out.bam
 ```
 
 ### 3.3) Reads filtering
@@ -255,10 +255,10 @@ samtools view \
     -hb \
     -@ $THREADS \
     -F 2572 \
-    -o sample.sorted.filtered.bam \
-    sample.sorted.bam
+    -o sample.filtered.bam \
+    sample_Aligned.sortedByCoord.out.bam
     
-samtools index -@ $THREADS sample.sorted.filtered.bam
+samtools index -@ $THREADS sample.filtered.bam
 ```
 
 To be run for each sample in the analysis. 
@@ -270,11 +270,11 @@ Optical duplicate reads are removed using the [markdup](http://lomereiter.github
 **Example deduplication script:**
 ```shell 
 sambamba markdup -r \
-        -t $THREADS \
-        sample.sorted.filtered.bam \
-        sample.sorted.filtered.nodup.bam \
+    -t $THREADS \
+    sample.filtered.bam \
+    sample.filtered.nodup.bam \
   
-samtools index -@ $THREADS sample.sorted.filtered.nodup.bam
+samtools index -@ $THREADS sample.filtered.nodup.bam
 ```
 
 To be run for each sample in the analysis.
@@ -288,10 +288,10 @@ Some problematic regions of the genome can be filtered out from the alignment fi
 samtools view -h -b \
     -@ $THREADS \
     -L selection.bed \
-    -o sample.sorted.filtered.nodup.masked.bam \
-    sample.sorted.filtered.nodup.bam \
+    -o sample.filtered.nodup.masked.bam \
+    sample.filtered.nodup.bam \
   
-samtools index -@ $THREADS sample.sorted.filtered.nodup.masked.bam
+samtools index -@ $THREADS sample.filtered.nodup.masked.bam
 ```
 
 Only positive selections may be performed with this command. To remove regions listed in a blacklist bed file, an inverse of that bed file must be generated first. Using bedtools substract, the inversion can be made in reference to a .bed of the whole reference genome:
@@ -327,7 +327,7 @@ bamCoverage -e $FRAGLENGTH \
     -of bigwig \
     --normalizeUsing RPKM \
     --smoothLength $SMOOTH \
-    -b sample.sorted.filtered.masked.nodup.bam \
+    -b sample.filtered.masked.nodup.bam \
     -o sample.RPKM.bigwig
 ```
 
@@ -339,7 +339,7 @@ bamCoverage -e $FRAGLENGTH \
     -of bigwig \
     --normalizeUsing RPKM \
     --smoothLength $SMOOTH \
-    -b sample.sorted.filtered.masked.nodup.bam \
+    -b sample.filtered.masked.nodup.bam \
     -o sample.RPKM.bigwig
 ```
 
@@ -428,8 +428,8 @@ macs2 callpeak \
     --bdg \
     -g $GENOME_SIZE \
     --tempdir tempDir/ \
-    -t IP_sample.sorted.filtered.masked.nodup.bam \
-    -c input_sample.sorted.filtered.masked.nodup.bam \
+    -t IP_sample.filtered.masked.nodup.bam \
+    -c input_sample.filtered.masked.nodup.bam \
     -n sample
 ```
 
@@ -441,8 +441,8 @@ macs2 callpeak \
     --bdg \
     -g $GENOME_SIZE \
     --tempdir tempDir/ \
-    -t IP_sample.sorted.filtered.masked.nodup.bam \
-    -c input_sample.sorted.filtered.masked.nodup.bam \
+    -t IP_sample.filtered.masked.nodup.bam \
+    -c input_sample.filtered.masked.nodup.bam \
     -n sample
 ```
 ### 5.2) Broad peaks
@@ -458,8 +458,8 @@ macs2 callpeak \
     --bdg \
     -g $GENOME_SIZE \
     --tempdir tempDir/ \
-    -t IP_sample.sorted.filtered.masked.nodup.bam \
-    -c input_sample.sorted.filtered.masked.nodup.bam \
+    -t IP_sample.filtered.masked.nodup.bam \
+    -c input_sample.filtered.masked.nodup.bam \
     -n sample
 ```
 
@@ -473,8 +473,8 @@ macs2 callpeak \
     --bdg \
     -g $GENOME_SIZE \
     --tempdir tempDir/ \
-    -t IP_sample.sorted.filtered.masked.nodup.bam \
-    -c input_sample.sorted.filtered.masked.nodup.bam \
+    -t IP_sample.filtered.masked.nodup.bam \
+    -c input_sample.filtered.masked.nodup.bam \
     -n sample
 ```
 
