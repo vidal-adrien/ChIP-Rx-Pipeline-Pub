@@ -301,7 +301,7 @@ sambamba markdup -r \
         -t $THREADS \
         sample.filtered.bam \
         sample.filtered.nodup.bam \
-  
+
 samtools index -@ $THREADS sample.filtered.nodup.bam
 ```
 
@@ -318,7 +318,7 @@ samtools view -h -@ $THREADS sample.filtered.bam \
     | grep -v ${spikeInTag} \
     | samtools  view -@ $THREADS -b \
     > sample.reference.filtered.nodup.bam
-    
+
 samtools index -@ $THREADS sample.reference.filtered.nodup.bam
 
 samtools view -h -@ $THREADS sample.filtered.bam \
@@ -329,7 +329,6 @@ samtools view -h -@ $THREADS sample.filtered.bam \
 
 samtools index -@ $THREADS sample.spikein.filtered.nodup.bam
 ```
-
 To be run for each sample in the analysis.
 
 ### <a id="masking">3.6) Masking genomic regions</a>
