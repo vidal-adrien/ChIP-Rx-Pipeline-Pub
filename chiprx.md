@@ -9,7 +9,7 @@ The following files may be needed for this pipeline:
   * In the case of paired-end sequencing, two files per sample with matching read IDs are needed.
 * The sequences of potential contaminants to control for in `.fasta` format (optional).
 * The sequences of the sequencing adapters in `.fasta` format.
-* The sequence of the reference genome of teh studied organism in `.fasta` format.
+* The sequence of the reference genome of the studied organism in `.fasta` format.
 * The sequence of the reference genome for the foreign genetic material, introduced in the samples as the spike-in control, in `.fasta` format.
 * Optionally, a `.bed` file containing a blacklist of genomic regions to exclude from the map.
 * `.bed` files of the genomic regions (*e.g* genes, transposable elements, etc.) to analyse the alignment coverage on. The 4th column of those bed files must contain the identifiers of the regions. Such a file can be produced from a `.gff` annotation using the [bedFromGff.pl](bedFromGff.md) script.
@@ -365,7 +365,7 @@ $$r=100*\frac{C^{Input}\_{Spike-in}}{C^{Input}\_{Reference}+C^{Input}\_{Spike-in
 
 Then the spike-in factor is computed as follows:
 
-$$F=\frac{\alpha}{10^6*C^{IP}\_{Spike-in}}$$
+$$F=\frac{r}{10^6*C^{IP}\_{Spike-in}}$$
 
 With *C* the read counts for a given sample (input or IP) and partition (reference or spike-in).
 
