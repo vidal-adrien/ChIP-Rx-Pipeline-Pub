@@ -78,10 +78,6 @@ bedFromFasta.pl -i reference+spikein_genome.fasta -o reference+spikein_genome.be
 
 This file will also be required for other procedures. A similar file for the studied organism's reference genome on its own will also be needed later.
 
-```shell
-bedFromFasta.pl -i reference_genome.fasta -o reference_genome.bed
-```
-
 Here, executing some R code using Rscript allows to more easily compute the formula.
 
 ```shell

@@ -66,7 +66,10 @@ To compute this, a `.bed` file describing the entire genome as genomic regions w
 bedFromFasta.pl -i reference_genome.fasta -o reference_genome.bed
 ```
 
-This file will also be required for other procedures. Here, executing some R code using Rscript allows to more easily compute the formula.
+This file will also be required for other procedures. 
+
+Here, executing some R code using Rscript allows to more easily compute the formula.
+
 ```shell
 NBASES=$(Rscript -e "writeLines(as.character(as.integer(
     min(14, log2(sum( 
