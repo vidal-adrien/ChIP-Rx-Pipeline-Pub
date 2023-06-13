@@ -17,11 +17,11 @@ Unless specified otherwise, all code examples are in the bash Unix Shell command
 
 The following programs are used in this pipeline:
 
-* [fastqc](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/)(optional)
-* [fastq_screen](https://www.bioinformatics.babraham.ac.uk/projects/fastq_screen/)(optional)
-* [Trimmomatic](http://www.usadellab.org/cms/?page=trimmomatic)
-* [STAR](https://github.com/alexdobin/STAR)
-* [bowtie2](https://bowtie-bio.sourceforge.net/bowtie2/index.shtml)(optional)
+* [fastqc](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/) (optional).
+* [fastq_screen](https://www.bioinformatics.babraham.ac.uk/projects/fastq_screen/) (optional).
+* [Trimmomatic](http://www.usadellab.org/cms/?page=trimmomatic).
+* [STAR](https://github.com/alexdobin/STAR).
+* [bowtie2](https://bowtie-bio.sourceforge.net/bowtie2/index.shtml) (optional).
 * The [samtools](https://www.htslib.org/) toolkit.
 * The [sambamba](http://lomereiter.github.io/sambamba/) toolkit.
 * The [bedtools](https://bedtools.readthedocs.io/en/latest/index.html) toolkit.
