@@ -11,7 +11,7 @@ The following files may be needed for this pipeline:
 * The sequences of the sequencing adapters in `.fasta` format.
 * The sequence of the reference genome of the studied organism in `.fasta` format.
 * The sequence of the reference genome for the foreign genetic material, introduced in the samples as the spike-in control, in `.fasta` format.
-* Optionally, a `.bed` file containing a blacklist of genomic regions to exclude from the map.
+* Optionally, a `.bed` file containing a blacklist of genomic regions to exclude from the map or at the inverse, a `bed` file of all th egenomic regions *not to* exlude.
 * `.bed` files of the genomic regions (*e.g* genes, transposable elements, etc.) to analyse the alignment coverage on. The 4th column of those bed files must contain the identifiers of the regions. Such a file can be produced from a `.gff` annotation using the [bedFromGff.pl](bedFromGff.md) script.
 
 Unless specified otherwise, all code examples are in the bash Unix Shell command language.
