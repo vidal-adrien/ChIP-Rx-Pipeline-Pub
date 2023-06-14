@@ -274,6 +274,7 @@ Optical duplicate reads are removed using the [markdup](http://lomereiter.github
 ```shell 
 sambamba markdup -r \
     -t $THREADS \
+    --tmpdir $TMP \
     sample.filtered.bam \
     sample.filtered.nodup.bam \
   

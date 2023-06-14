@@ -110,6 +110,8 @@ Finally, for the purpose of performing [contamination screening](#fastqscreen) w
 
 ```shell
 bowtie2-build -threads $THREADS reference_genome.fasta reference_genome
+
+bowtie2-build -threads $THREADS spikein_genome.fasta spikein_genome
 ```
 
 The last argument (in this case `"reference_genome"` the prefix that was used to name each file in the index. This will by default equal the name of the `.fasta` file without the extension if unspecified. Specifying it is useful to differentiate different index builds or specify the path of the directory to contain the index files.
@@ -295,6 +297,7 @@ Optical duplicate reads are removed using the [markdup](http://lomereiter.github
 ```shell
 sambamba markdup -r \
         -t $THREADS \
+        --tmpdir $TMP \
         sample.filtered.bam \
         sample.filtered.nodup.bam \
 
