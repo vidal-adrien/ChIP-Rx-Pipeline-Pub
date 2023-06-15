@@ -83,7 +83,7 @@ Here, executing some R code using Rscript allows to more easily compute the form
 ```shell
 NBASES=$(Rscript -e "writeLines(as.character(as.integer(
     min(14, log2(sum( 
-        read.table('reference+spikein_genome.fasta')[[3L]]
+        read.table('reference+spikein_genome.bed')[[3L]]
     ))/2 - 1)
 )))")
 ```
@@ -411,7 +411,7 @@ The following instructions will describe how to make both normalized tracks and 
 ### 4.1) Normalized tracks
 
 RPKM normalization can be applied to generate comparable genomic tracks. The bin size will determine the resolution of the track. Optionally, the track may be smoothed for the purpose of visualization using the `--smoothLength` argument.
-The commands for single-end or paired-end differ in that the `-e` (extend reads) option must be followed with a value for the fragents length for single-end cases while this is automaticaly determined by th eread mates in paired-end cases.
+The commands for single-end or paired-end differ in that the `-e` (extend reads) option must be followed with a value for the fragents length for single-end cases while this is automaticaly determined by the read mates in paired-end cases.
 
 **Example single-end normalized tracks script:**
 ```shell
