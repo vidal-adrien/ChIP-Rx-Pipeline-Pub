@@ -642,6 +642,21 @@ bedtools multicov \
 
 If multiple types of regions (genes, TEs, etc.) have been annotated on the peaks, this procedure may be repeated on the total set of marked regions of that type.
 
+Running `bedtools multicov` on many `.bam` files can be quite time consuming since this command only uses one thread. It may then be preferable to process the bams in parallel and collect the individual outputs in a single coverage file afterwards.
+
+```shell
+BAMS=(sample1.bam sample2.bam ... sampleN.bam)
+
+parallel -j ${threads} "bedtools multicov -bams {} -bed <(bedtools sort -i all_marked_regions.bed) > ${TMP}/{/.}.bed" ::: ${BAMS[@]}
+
+for bed in $(ls ${TMP}/*.bed)
+do
+    inserts+=("<(cut -f 4 ${bed})")
+done
+
+paste <(cut -f 1-3 all_marked_regions.bed) ${inserts[@]} > all_marked_regions_coverage.bed
+```
+
 ### 7.2) Building the model
 
 First, a table describing the experimental design has to be prepared. This should at least contain the identifier for the samples and variables describing the biological replicates.
