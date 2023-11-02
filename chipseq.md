@@ -22,8 +22,8 @@ The following programs are used in this pipeline:
 * [Trimmomatic](http://www.usadellab.org/cms/?page=trimmomatic).
 * [STAR](https://github.com/alexdobin/STAR).
 * [bowtie2](https://bowtie-bio.sourceforge.net/bowtie2/index.shtml) (optional).
-* The [samtools](https://www.htslib.org/) toolkit.
 * The [sambamba](http://lomereiter.github.io/sambamba/) toolkit.
+* The [samtools](https://www.htslib.org/) toolkit (optional*).
 * The [bedtools](https://bedtools.readthedocs.io/en/latest/index.html) toolkit.
 * [MACS2](https://pypi.org/project/MACS2/) (requires python3).
 * The [deeptools](https://deeptools.readthedocs.io/en/develop/) toolkit (requires python3).
@@ -31,7 +31,9 @@ The following programs are used in this pipeline:
   * [DESeq2](https://bioconductor.org/packages/release/bioc/html/DESeq2.html)
   * [gplots](https://cran.r-project.org/web/packages/gplots/)
   * [ggplot2](https://ggplot2.tidyverse.org/)
-  * [RColorBrewer](https://cran.r-project.org/web/packages/RColorBrewer/index.html)  
+  * [RColorBrewer](https://cran.r-project.org/web/packages/RColorBrewer/index.html)
+
+**\*** *All functions performed by samtools can be performed by sambamba. Only one steps require the specific use of sambamba. However, due to having encountered file corruption issues with samtools, sambamba has come to replace it in all tasks that it previously was used for. Samtools may still be used if prefered.*
 
 The following key terms are important to understand this page's instructions: 
   * **Sample**: The set of sequenced reads corresponding to a single experimental sample. For experiments using pair-end sequencing, there will be two sets of reads.
@@ -217,6 +219,12 @@ The `--outFilterMismatchNmax` argument limits the number of allowed mismatches i
 Finally we index the alignment map with [samtools index](http://www.htslib.org/doc/samtools-index.html).
 
 **Example single-end STAR alignment command:**
+<!---
+```shell
+samtools index -@ $THREADS sample_Aligned.sortedByCoord.out.bam
+```
+--->
+
 ```shell
 STAR --alignIntronMax 1 --alignEndsType EndToEnd --runThreadN $THREADS \
   --readFilesIn sample.trimmed.fastq --readFilesCommand zcat \
@@ -225,10 +233,16 @@ STAR --alignIntronMax 1 --alignEndsType EndToEnd --runThreadN $THREADS \
   --outSAMtype BAM SortedByCoordinate --outFileNamePrefix sample \
   --outFilterMismatchNmax 2 --outSAMmultNmax 1 --outMultimapperOrder Random
 
-samtools index -@ $THREADS sample_Aligned.sortedByCoord.out.bam
+sambamba index -t $THREADS sample_Aligned.sortedByCoord.out.bam
 ```
 
-**Example pair-end STAR alignment command:**
+**Example paired-end STAR alignment command:**
+<!---
+```shell
+samtools index -@ $THREADS sample_Aligned.sortedByCoord.out.bam
+```
+--->
+
 ```shell
 STAR --alignIntronMax 1 --alignEndsType EndToEnd --runThreadN $THREADS \
   --readFilesIn sample_1.trimmed.fastq sample_2.trimmed.fastq --readFilesCommand zcat \
@@ -237,12 +251,12 @@ STAR --alignIntronMax 1 --alignEndsType EndToEnd --runThreadN $THREADS \
   --outSAMtype BAM SortedByCoordinate --outFileNamePrefix sample \
   --outFilterMismatchNmax 2 --outSAMmultNmax 1 --outMultimapperOrder Random
 
-samtools index -@ $THREADS sample_Aligned.sortedByCoord.out.bam
+sambamba index -t $THREADS sample_Aligned.sortedByCoord.out.bam
 ```
 
 ### 3.3) Reads filtering
 
-Filters are applied using [samtools view](https://www.htslib.org/doc/samtools-view.html). The flag used to filter ecompasses the following:
+Filters are applied using <!---[samtools view](https://www.htslib.org/doc/samtools-view.html) ---> [sambamba view](https://lomereiter.github.io/sambamba/docs/sambamba-view.html). The flag used to filter ecompasses the following:
 
 |2572||
 |:----|:--------------------------------------------|
@@ -252,25 +266,43 @@ Filters are applied using [samtools view](https://www.htslib.org/doc/samtools-vi
 | + 2048 | supplementary alignment  |
 
 **Example filtering command:**
-
-```shell 
+<!---
+```shell
 samtools view \
     -hb \
     -@ $THREADS \
     -F 2572 \
     -o sample.filtered.bam \
     sample_Aligned.sortedByCoord.out.bam
-    
+  
 samtools index -@ $THREADS sample.filtered.bam
+```
+--->
+
+```shell
+sambamba view \
+    -h -f bam \
+    -t $THREADS \
+    --num-filter /2572 \
+    -o sample.filtered.bam \
+    sample_Aligned.sortedByCoord.out.bam
+
+sabamba index -t $THREADS sample.filtered.bam
 ```
 
 To be run for each sample in the analysis. 
 
 ### 3.4) Deduplication
 
-Optical duplicate reads are removed using the [markdup](http://lomereiter.github.io/sambamba/docs/sambamba-markdup.html) command from sambamba.
+Optical duplicate reads are removed using [sambamba markdup](http://lomereiter.github.io/sambamba/docs/sambamba-markdup.html).
 
 **Example deduplication script:**
+<!---
+```shell
+samtools index -@ $THREADS sample.filtered.nodup.bam
+```
+--->
+
 ```shell 
 sambamba markdup -r \
     -t $THREADS \
@@ -278,24 +310,36 @@ sambamba markdup -r \
     sample.filtered.bam \
     sample.filtered.nodup.bam \
   
-samtools index -@ $THREADS sample.filtered.nodup.bam
+sabamba index -t $THREADS sample.filtered.nodup.bam
 ```
 
 To be run for each sample in the analysis.
 
 ### <a id="masking">3.5) Masking genomic regions</a>
 
-Some problematic regions of the genome can be filtered out from the alignment files.  The `-L` option of [samtools view](https://www.htslib.org/doc/samtools-view.html) allows making a selection of regions using a `.bed` file. This step can also be used to remove chromosomes we don't want to study at all such as the mitochondrial and chloroplastic chromosomes when studying the nucleic chromosomes only.
+Some problematic regions of the genome can be filtered out from the alignment files.  The `-L` option of <!--- [samtools view](https://www.htslib.org/doc/samtools-view.html) ---> [sambamba view](https://lomereiter.github.io/sambamba/docs/sambamba-view.html) allows making a selection of regions using a `.bed` file. This step can also be used to remove chromosomes we don't want to study at all such as the mitochondrial and chloroplastic chromosomes when studying the nucleic chromosomes only.
 
 **Example masking script:**
+<!---
 ```shell
 samtools view -h -b \
     -@ $THREADS \
     -L selection.bed \
-    -o sample.filtered.nodup.masked.bam \
-    sample.filtered.nodup.bam \
+    -o sample.reference.filtered.nodup.masked.bam \
+    sample.reference.filtered.nodup.bam \
   
-samtools index -@ $THREADS sample.filtered.nodup.masked.bam
+samtools index -@ $THREADS sample.reference.filtered.nodup.masked.bam
+```
+--->
+
+```shell
+sambamba view -h -f bam \
+    -t $THREADS \
+    -L selection.bed \
+    -o sample.reference.filtered.nodup.masked.bam \
+    sample.reference.filtered.nodup.bam
+
+sambamba index -t $THREADS sample.reference.filtered.nodup.masked.bam
 ```
 
 Only positive selections may be performed with this command. To remove regions listed in a blacklist bed file, an inverse of that bed file must be generated first. Using bedtools substract, the inversion can be made in reference to a .bed of the whole reference genome:
@@ -413,11 +457,11 @@ Alternatively to using `.bigwig` tracks, the [multiBamSummary](https://deeptools
         <td><a href="./images/pipeline_diagrams/diagram_chipseq_2_peaks+annotation.png?raw=1">⇗Full size image</a></td>
     </tr>
     <tr>
-        <td width="450"><b>Figure 2:</b> Diagram of peak calling and peak annotation. 2A: Peak calling. 2B: Merging biological replicate reads and annotation of genomic regions. 2C: Collection of all marked genomic regions.</td>
+        <td width="450"><b>Figure 2:</b> Diagram of peak calling and annotation.</td>
     </tr>
 </table>
 
-## 5) Peak calling
+## 5) Peak calling and annotation
 
 Peak calling is used to discover genomic regions that are highly enriched in alligned reads. It is done using the [macs2 callpeak](https://hbctraining.github.io/Intro-to-ChIPseq/lessons/05_peak_calling_macs.html) command. The input and IP samples for an experimental condition are required. The command is different between single-end and pair-end applications. A p-value threshold (`-q` argument) of 0.01 is a good starting point but it must be evaluated empirically for each study.
 
@@ -539,6 +583,17 @@ grep -Ff  all_marked_regions.txt regions.bed > all_marked_regions.bed
 ```
 
 --->
+<table align="left" width="1000" cellspacing="0" cellpadding="0">
+    <tr>
+        <td><img src="./images/pipeline_diagrams/diagram_chipseq_3_metaplots.png" align="left" width="1000px"></td>
+    </tr>
+    <tr>
+        <td><a href="./images/pipeline_diagrams/diagram_chipseq_3_metaplots.png?raw=1">⇗Full size image</a></td>
+    </tr>
+    <tr>
+        <td width="1000"><b>Figure 3:</b> Diagram of metaplot building.</td>
+    </tr>
+</table>
 
 ## <a id="metaplots">6) Region metaplots and heatmaps</a>
 
@@ -669,15 +724,15 @@ plotHeatmap --perGroup --dpi 300 \
     --outFileName genes_profile_perGroup.pdf
 ```
 
-<table align="left" width="450" cellspacing="0" cellpadding="0">
+<table align="left" width="1000" cellspacing="0" cellpadding="0">
     <tr>
-        <td><img src="./images/pipeline_diagrams/diagram_chipseq_3_differential.png" align="left" width="450px"></td>
+        <td><img src="./images/pipeline_diagrams/diagram_chipseq_4_differential.png" align="left" width="1000px"></td>
     </tr>
     <tr>
-        <td><a href="./images/pipeline_diagrams/diagram_chipseq_3_differential.png?raw=1">⇗Full size image</a></td>
+        <td><a href="./images/pipeline_diagrams/diagram_chipseq_4_differential.png?raw=1">⇗Full size image</a></td>
     </tr>
     <tr>
-        <td width="450"><b>Figure 3:</b> Diagram of the differential analysis.</td>
+        <td width="1000"><b>Figure 4:</b> Diagram of the differential analysis.</td>
     </tr>
 </table>
 
@@ -685,7 +740,20 @@ plotHeatmap --perGroup --dpi 300 \
 
 The [DESeq2](https://bioconductor.org/packages/release/bioc/html/DESeq2.html) package for the [R language](https://www.r-project.org/) can be used to make a differential analysis of the coverage of different regions of the genome (genes, Transcription Elements, etc.) by aligned reads. The following packages also need to be loaded for some of the code examples: [gplots](https://cran.r-project.org/web/packages/gplots/), [RColorBrewer](https://cran.r-project.org/web/packages/RColorBrewer/index.html), [ggplot2](https://ggplot2.tidyverse.org/). 
 
-### 7.1) Multiple maps coverage
+### 7.1) Universe of peaks annotation
+For the purpose of the differential analysis, rather than the conservative annotation used in drawing [metaplots](#metaplots), a more permissive set can be built under the assumption that any falsely annotated regions will be identified as statistically insignificant in the differntial analysis. The first step in the construction of this annotation is to merge the peaks of all the samples in the experiment to build single set of peaks. This is done using [bedtools merge](https://bedtools.readthedocs.io/en/latest/content/tools/merge.html).
+
+```shell
+BEDS=( sample1_peaks.narrowPeak sample2_peaks.narrowPeak ... sampleN_peaks.narrowPeak)
+
+cat ${BEDS[@]} | bedtools sort | bedtools merge > universe_of_peaks.bed
+```
+
+**Note:** Peak files will either end with `.narrowPeak` or `.broadPeak` depending on the method used.
+
+This "universe of peaks" file is then annotated as presented in [peak annotation](#annotation) on each set of regions to study in the differential analysis.
+
+### 7.2) Multiple maps coverage
 
 Before going to R, the read coverage of regions of interest (genes, TEs, etc.) by aligned reads must be computed. This can be done for multiple samples at once using the [bedtools multicov](https://bedtools.readthedocs.io/en/latest/content/tools/multicov.html) command.
 
@@ -718,7 +786,7 @@ done
 paste <(cut -f 1-3 all_marked_regions.bed) ${inserts[@]} > all_marked_regions_coverage.bed
 ```
 
-### 7.2) Building the model
+### 7.3) Building the model
 
 First, a table describing the experimental design has to be prepared. This should at least contain the identifier for the samples and variables describing the biological replicates.
 
@@ -772,7 +840,7 @@ Finally, the normalization may be computed according to the model.
 dds <- DESeq2::DESeq(dds)
 ```
 
-### 7.3) Normalized counts
+### 7.4) Normalized counts
 
 We can output the normalized coverage values for a set of regions such as, in the following example, genes.
 
@@ -787,7 +855,7 @@ write.table(
 )
 ```
 
-### 7.4) Samples clustering heatmap and PCA
+### 7.5) Samples clustering heatmap and PCA
 
 Similarly to the [multi-track summary plots](#summary) built earlier, we can produce clustering heatmap and PCA plots with the normalized coverage computed for the DESeq2 model.
 
@@ -826,7 +894,7 @@ ggplot2::ggsave("/PCA_protein_v_sample.png",
 )
 ```
 
-### 7.5) Differentially marked regions
+### 7.6) Differentially marked regions
 
 Any two pairs of experimental conditions can be compared by the long fold change in the coverage levels over genomic regions. This will ultimately lead to the identification of hypo- and hyper-marked genes and/or TEs in the test experimental conditions vs the control one.
 

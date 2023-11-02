@@ -23,8 +23,7 @@ The following programs are used in this pipeline:
 * [Trimmomatic](http://www.usadellab.org/cms/?page=trimmomatic).
 * [STAR](https://github.com/alexdobin/STAR).
 * [bowtie2](https://bowtie-bio.sourceforge.net/bowtie2/index.shtml) (optional).
-* The [samtools](https://www.htslib.org/) toolkit.
-* The [sambamba](http://lomereiter.github.io/sambamba/) toolkit.
+* The [sambamba](http://lomereiter.github.io/sambamba/) toolkit (optionally [samtools](https://www.htslib.org/)*).
 * The [bedtools](https://bedtools.readthedocs.io/en/latest/index.html) toolkit.
 * [MACS2](https://pypi.org/project/MACS2/) (requires python3).
 * The [deeptools](https://deeptools.readthedocs.io/en/develop/) toolkit (requires python3).
@@ -33,6 +32,8 @@ The following programs are used in this pipeline:
   * [gplots](https://cran.r-project.org/web/packages/gplots/)
   * [ggplot2](https://ggplot2.tidyverse.org/)
   * [RColorBrewer](https://cran.r-project.org/web/packages/RColorBrewer/index.html)
+
+**\*** *All functions performed by samtools can be performed by sambamba. Only one steps require the specific use of sambamba. However, due to having encountered file corruption issues with samtools, sambamba has come to replace it in all tasks that it previously was used for. Samtools may still be used if prefered.*
 
 The following key terms are defined as such for the purpose of this page's instructions:
 
@@ -233,9 +234,14 @@ The `--readFilesIn` argument is used to indicate the input read file. If two fil
 
 The `--outFilterMismatchNmax` argument limits the number of allowed mismatches in each alignment. The `--outSAMmultNmax` determines how many alignments may be given for each read and `--outMultimapperOrder` determines how alignments are picked out of others with equal quality. Finally, the `--outFilterMultimapNmax` may be added to determine for how many alignments a multimapping read will be filtered out entirely. Note that this filter is applied by default with a value of 10 even if the argument is not specified. More information can be found in the [STAR manual](https://raw.githubusercontent.com/alexdobin/STAR/master/doc/STARmanual.pdf).
 
-Finally we index the alignment map with [samtools index](http://www.htslib.org/doc/samtools-index.html).
+Finally we index the alignment map with <!--- [samtools index](http://www.htslib.org/doc/samtools-index.html) ---> [sambamba index](https://lomereiter.github.io/sambamba/docs/sambamba-index.html).
 
 **Example single-end STAR alignment command:**
+<!---
+```shell
+samtools index -@ $THREADS sample_Aligned.sortedByCoord.out.bam
+```
+--->
 
 ```shell
 STAR --alignIntronMax 1 --alignEndsType EndToEnd --runThreadN $THREADS \
@@ -245,10 +251,15 @@ STAR --alignIntronMax 1 --alignEndsType EndToEnd --runThreadN $THREADS \
   --outSAMtype BAM SortedByCoordinate --outFileNamePrefix sample \
   --outFilterMismatchNmax 2 --outSAMmultNmax 1 --outMultimapperOrder Random
 
-samtools index -@ $THREADS  sample_Aligned.sortedByCoord.out.bam
+sambamba index -t $THREADS sample_Aligned.sortedByCoord.out.bam
 ```
 
 **Example paired-end STAR alignment command:**
+<!---
+```shell
+samtools index -@ $THREADS sample_Aligned.sortedByCoord.out.bam
+```
+--->
 
 ```shell
 STAR --alignIntronMax 1 --alignEndsType EndToEnd --runThreadN $THREADS \
@@ -258,12 +269,12 @@ STAR --alignIntronMax 1 --alignEndsType EndToEnd --runThreadN $THREADS \
   --outSAMtype BAM SortedByCoordinate --outFileNamePrefix sample \
   --outFilterMismatchNmax 2 --outSAMmultNmax 1 --outMultimapperOrder Random
 
-samtools index -@ $THREADS  sample_Aligned.sortedByCoord.out.bam
+sambamba index -t $THREADS sample_Aligned.sortedByCoord.out.bam
 ```
 
 ### 3.3) Reads filtering
 
-Filters are applied using [samtools sort](https://www.htslib.org/doc/samtools-sort.html). The flag used to filter ecompasses the following:
+Filters are applied using <!---[samtools view](https://www.htslib.org/doc/samtools-view.html) ---> [sambamba view](https://lomereiter.github.io/sambamba/docs/sambamba-view.html). The flag used to filter ecompasses the following:
 
 
 | 2572   |                                            |
@@ -274,7 +285,7 @@ Filters are applied using [samtools sort](https://www.htslib.org/doc/samtools-so
 | + 2048 | supplementary alignment                    |
 
 **Example filtering command:**
-
+<!---
 ```shell
 samtools view \
     -hb \
@@ -285,14 +296,31 @@ samtools view \
   
 samtools index -@ $THREADS sample.filtered.bam
 ```
+--->
+
+```shell
+sambamba view \
+    -h -f bam \
+    -t $THREADS \
+    --num-filter /2572 \
+    -o sample.filtered.bam \
+    sample_Aligned.sortedByCoord.out.bam
+
+sabamba index -t $THREADS sample.filtered.bam
+```
 
 To be run for each sample in the analysis.
 
 ### 3.4) Deduplication
 
-Optical duplicate reads are removed using the [markdup](http://lomereiter.github.io/sambamba/docs/sambamba-markdup.html) command from sambamba.
+Optical duplicate reads are removed using [sambamba markdup](http://lomereiter.github.io/sambamba/docs/sambamba-markdup.html).
 
 **Example deduplication script:**
+<!---
+```shell
+samtools index -@ $THREADS sample.filtered.nodup.bam
+```
+--->
 
 ```shell
 sambamba markdup -r \
@@ -301,21 +329,21 @@ sambamba markdup -r \
         sample.filtered.bam \
         sample.filtered.nodup.bam \
 
-samtools index -@ $THREADS sample.filtered.nodup.bam
+sabamba index -t $THREADS sample.filtered.nodup.bam
 ```
 
 To be run for each sample in the analysis.
 
 ### 3.5) Splitting reads between reference and spike-in
 
-The reads aligned to the studied organism's reference genome must be separated from the reads aligned to the foreign genome added as a Spike-In control. For this purpose, we can use the `-L` option for [samtools view](https://www.htslib.org/doc/samtools-view.html) to filter the reads using the regions that do or do not contain the tag added when adding the spike in genome to the reference genome.
+The reads aligned to the studied organism's reference genome must be separated from the reads aligned to the foreign genome added as a Spike-In control. For this purpose, we can use the `-L` option for <!--- [samtools view](https://www.htslib.org/doc/samtools-view.html) ---> [sambamba view](https://lomereiter.github.io/sambamba/docs/sambamba-view.html) to filter the reads using the regions that do or do not contain the tag added when adding the spike in genome to the reference genome.
 
 **Example split script:**
-
+<!---
 ```shell
 samtools view -h -@ $THREADS sample.filtered.bam \
     | grep -v ${spikeInTag} \
-    | samtools  view -@ $THREADS -b \
+    | samtools view -@ $THREADS -b \
     > sample.reference.filtered.nodup.bam
 
 samtools index -@ $THREADS sample.reference.filtered.nodup.bam
@@ -328,14 +356,32 @@ samtools view -h -@ $THREADS sample.filtered.bam \
 
 samtools index -@ $THREADS sample.spikein.filtered.nodup.bam
 ```
+--->
+
+```shell
+sambamba view -h -t $THREADS sample.filtered.bam \
+    | grep -v ${spikeInTag} \
+    | sambamba view -S -t $THREADS -f bam \
+    -o sample.reference.filtered.nodup.bam /dev/stdin
+
+sabamba index -t $THREADS sample.reference.filtered.nodup.bam
+
+sambamba view -h -t $THREADS ${input_bam} \
+    | grep ${spikeInTag} \
+    | sed s/${spikeInTag}// \
+    | sambamba view -S -t $THREADS -f bam \
+    -o sample.spikein.filtered.nodup.bam /dev/stdin
+
+sabamba index -t $THREADS sample.spikein.filtered.nodup.bam
+```
 To be run for each sample in the analysis.
 
 ### <a id="masking">3.6) Masking genomic regions</a>
 
-Some problematic regions of the genome can be filtered out from the alignment files.  The `-L` option of [samtools view](https://www.htslib.org/doc/samtools-view.html) allows making a selection of regions using a `.bed` file. This step can also be used to remove chromosomes we don't want to study at all such as the mitochondrial and chloroplastic chromosomes when studying the nucleic chromosomes only.
+Some problematic regions of the genome can be filtered out from the alignment files.  The `-L` option of <!--- [samtools view](https://www.htslib.org/doc/samtools-view.html) ---> [sambamba view](https://lomereiter.github.io/sambamba/docs/sambamba-view.html) allows making a selection of regions using a `.bed` file. This step can also be used to remove chromosomes we don't want to study at all such as the mitochondrial and chloroplastic chromosomes when studying the nucleic chromosomes only.
 
 **Example masking script:**
-
+<!---
 ```shell
 samtools view -h -b \
     -@ $THREADS \
@@ -344,6 +390,17 @@ samtools view -h -b \
     sample.reference.filtered.nodup.bam \
   
 samtools index -@ $THREADS sample.reference.filtered.nodup.masked.bam
+```
+--->
+
+```shell
+sambamba view -h -f bam \
+    -t $THREADS \
+    -L selection.bed \
+    -o sample.reference.filtered.nodup.masked.bam \
+    sample.reference.filtered.nodup.bam
+
+sambamba index -t $THREADS sample.reference.filtered.nodup.masked.bam
 ```
 
 Only positive selections may be performed with this command. To remove regions listed in a blacklist bed file, an inverse of that bed file must be generated first. Using bedtools substract, the inversion can be made in reference to a .bed of the whole reference genome:
@@ -368,31 +425,53 @@ $$F=\frac{r}{10^6*C^{IP}\_{Spike-in}}$$
 
 With *C* the read counts for a given sample (input or IP) and partition (reference or spike-in).
 
-**Example scaled by spike-in factor script:**
+**Example spike-in scale factor computation script:**
+
+<!---
+```shell
+reference_input=$(samtools view -c \
+    -@ $THREADS \
+    input_sample.reference.filtered.masked.nodup.bam \
+)
+
+spikein_input=$(samtools view -c \
+    -@ $THREADS \
+    input_sample.spikein.filtered.nodup.bam \
+)
+
+spikein_IP=$(samtools view -c \
+    -@ $THREADS \
+    IP_sample.spikein.filtered.nodup.bam \
+)
+
+(( r = 100 * spikein_input / (reference_input + spikein_input) ))
+(( FACTOR = r / (10**6 * spikein_IP ) ))
+```
+--->
 
 ```shell
-reference_input=$(samtools view \
-    -@ $THREADS \
-    -c input_sample.reference.filtered.masked.nodup.bam \
-)
-reference_IP=$(samtools view \
-    -@ $THREADS \
-    -c IP_sample.reference.filtered.masked.nodup.bam \
-)
-spikein_input=$(samtools view \
-    -@ $THREADS \
-    -c input_sample.spikein.filtered.nodup.bam \
-)
-spikein_IP=$(samtools view \
-    -@ $THREADS \
-    -c IP_sample.spikein.filtered.nodup.bam \
+reference_input=$(sambamba view -c \
+    -t $THREADS \
+    input_sample.reference.filtered.masked.nodup.bam \
 )
 
-(( r = 100 * spikein_input / (main_input + spikein_input) ))
+spikein_input=$(sambamba view -c \
+    -t $THREADS \
+    input_sample.spikein.filtered.nodup.bam \
+)
+
+spikein_IP=$(sambamba view -c \
+    -t $THREADS \
+    IP_sample.spikein.filtered.nodup.bam \
+)
+
+(( r = 100 * spikein_input / (reference_input + spikein_input) ))
 (( FACTOR = r / (10**6 * spikein_IP ) ))
 ```
 
 To be run for each experimental condition in the analysis.
+
+This way of computing the spike-in factor however suffers from the noisiness of the spike-in IP samples. A more advanced way of obtaining a read count for the spike-in IP is detailed in section X (LINK).
 
 ### 3.8) Cleaning up (optional)
 
@@ -536,11 +615,11 @@ Alternatively to using `.bigwig` tracks, the [multiBamSummary](https://deeptools
         <td><a href="./images/pipeline_diagrams/diagram_chiprx_2_peaks+annotation.png?raw=1">⇗Full size image</a></td>
     </tr>
     <tr>
-        <td width="450"><b>Figure 2:</b> Diagram of peak calling and peak annotation. 2A: Peak calling. 2B: Merging biological replicate reads and annotation of genomic regions. 2C: Collection of all marked genomic regions.</td>
+        <td width="450"><b>Figure 2:</b> Diagram of peak calling and annotation.</td>
     </tr>
 </table>
 
-## 5) Peak calling
+## 5) <a id="peaks">Peak calling and annotation
 
 Peak calling is used to discover genomic regions that are highly enriched in alligned reads. It is done using the [macs2 callpeak](https://hbctraining.github.io/Intro-to-ChIPseq/lessons/05_peak_calling_macs.html) command. The input and IP samples for an experimental condition are required. The command is different between single-end and paired-end applications. A p-value threshold (`-q` argument) of 0.01 is a good starting point but it must be evaluated empirically for each study.
 
@@ -667,6 +746,18 @@ grep -Ff  all_marked_regions.txt regions.bed > all_marked_regions.bed
 ```
 
 --->
+
+<table align="left" width="1000" cellspacing="0" cellpadding="0">
+    <tr>
+        <td><img src="./images/pipeline_diagrams/diagram_chiprx_3_metaplots.png" align="left" width="1000px"></td>
+    </tr>
+    <tr>
+        <td><a href="./images/pipeline_diagrams/diagram_chiprx_3_metaplots.png?raw=1">⇗Full size image</a></td>
+    </tr>
+    <tr>
+        <td width="1000"><b>Figure 3:</b> Diagram of metaplot building.</td>
+    </tr>
+</table>
 
 ## <a id="metaplots">6) Region metaplots and heatmaps</a>
 
@@ -797,15 +888,15 @@ plotHeatmap --perGroup --dpi 300 \
     --outFileName genes_profile_perGroup.pdf
 ```
 
-<table align="left" width="450" cellspacing="0" cellpadding="0">
+<table align="left" width="1000" cellspacing="0" cellpadding="0">
     <tr>
-        <td><img src="./images/pipeline_diagrams/diagram_chiprx_3_differential.png" align="left" width="450px"></td>
+        <td><img src="./images/pipeline_diagrams/diagram_chiprx_4_differential.png" align="left" width="1000px"></td>
     </tr>
     <tr>
-        <td><a href="./images/pipeline_diagrams/diagram_chiprx_3_differential.png?raw=1">⇗Full size image</a></td>
+        <td><a href="./images/pipeline_diagrams/diagram_chiprx_4_differential.png?raw=1">⇗Full size image</a></td>
     </tr>
     <tr>
-        <td width="450"><b>Figure 3:</b> Diagram of the differential analysis.</td>
+        <td width="1000"><b>Figure 4:</b> Diagram of the differential analysis.</td>
     </tr>
 </table>
 
@@ -813,7 +904,20 @@ plotHeatmap --perGroup --dpi 300 \
 
 The [DESeq2](https://bioconductor.org/packages/release/bioc/html/DESeq2.html) package for the [R language](https://www.r-project.org/) can be used to make a differential analysis of the coverage of different regions of the genome (genes, Transcription Elements, etc.) by aligned reads. The following packages also need to be loaded for some of the code examples: [gplots](https://cran.r-project.org/web/packages/gplots/), [RColorBrewer](https://cran.r-project.org/web/packages/RColorBrewer/index.html), [ggplot2](https://ggplot2.tidyverse.org/).
 
-### 7.1) Multiple maps coverage
+### 7.1) Universe of peaks annotation
+For the purpose of the differential analysis, rather than the conservative annotation used in drawing [metaplots](#metaplots), a more permissive set can be built under the assumption that any falsely annotated regions will be identified as statistically insignificant in the differntial analysis. The first step in the construction of this annotation is to merge the peaks of all the samples in the experiment to build single set of peaks. This is done using [bedtools merge](https://bedtools.readthedocs.io/en/latest/content/tools/merge.html).
+
+```shell
+BEDS=( sample1_peaks.narrowPeak sample2_peaks.narrowPeak ... sampleN_peaks.narrowPeak)
+
+cat ${BEDS[@]} | bedtools sort | bedtools merge > universe_of_peaks.bed
+```
+
+**Note:** Peak files will either end with `.narrowPeak` or `.broadPeak` depending on the method used.
+
+This "universe of peaks" file is then annotated as presented in [peak annotation](#annotation) on each set of regions to study in the differential analysis.
+
+### 7.2) Multiple maps coverage
 
 Before going to R, the read coverage of regions of interest by aligned reads must be computed. This can be done for multiple samples at once using the [bedtools multicov](https://bedtools.readthedocs.io/en/latest/content/tools/multicov.html) command.
 
@@ -826,28 +930,30 @@ BAMS=(sample1.bam sample2.bam ... sampleN.bam)
   
 bedtools multicov \
     -bams ${BAMS[@]} \
-    -bed all_marked_regions.bed \
-> all_marked_regions_coverage.bed
+    -bed universe_of_peaks_annotation.bed \
+> universe_of_peaks_annotation_coverage.bed
 ```
 
-If multiple types of regions (genes, TEs, etc.) have been annotated on the peaks, this procedure may be repeated on the total set of marked regions of that type.
+If multiple types of regions (genes, TEs, etc.) have been annotated on the peaks, this procedure may be repeated on the universe of peaks annotation of that type.
 
 Running `bedtools multicov` on many `.bam` files can be quite time consuming since this command only uses one thread. It may then be preferable to process the bams in parallel and collect the individual outputs in a single coverage file afterwards.
 
 ```shell
 BAMS=(sample1.bam sample2.bam ... sampleN.bam)
 
-parallel -j ${threads} "bedtools multicov -bams {} -bed <(bedtools sort -i all_marked_regions.bed) > ${TMP}/{/.}.bed" ::: ${BAMS[@]}
+parallel -j ${threads} "bedtools multicov -bams {} -bed universe_of_peaks_annotation.bed > ${TMP}/{/.}.bed" ::: ${BAMS[@]}
 
 for bed in $(ls ${TMP}/*.bed)
 do
     inserts+=("<(cut -f 4 ${bed})")
 done
 
-paste <(cut -f 1-3 all_marked_regions.bed) ${inserts[@]} > all_marked_regions_coverage.bed
+paste <(cut -f 1-3 universe_of_peaks_annotation.bed) ${inserts[@]} > universe_of_peaks_annotation_coverage.bed
 ```
 
-### 7.2) Building the model
+**Note:** The annotation file must be sorted for `bedtools multicov` to work. Use [bedtools sort](https://bedtools.readthedocs.io/en/latest/content/tools/sort.html) if necessary.
+
+### 7.3) Building the model
 
 First, a table describing the experimental design has to be prepared. This should at least contain the identifier for the samples and variables describing the biological replicates.
 
@@ -862,7 +968,7 @@ B_rep2      rep2 B
 ...
 ```
 
-From this point on, all code examples are in the [R language](https://www.r-project.org/) unlike all he above bash samples.
+From this point on, all code examples are in the [R language](https://www.r-project.org/) unlike all the above bash samples.
 
 The experimental design table should have one row for each sample for which we computed coverage counts for the regions of interest respective to the order in which the `.bam` files were given as entry. Note that only the counts for the samples after immuno-precipitation are needed.
 
@@ -878,7 +984,7 @@ coverage <- structure(
 )
 ```
 
-At this point, if we want to study multiple sets of genomic regions, we may merge the counts tables to load them in the same DESeq2 model. For instance, with genes and transposable element counts.
+At this point, if we want to study multiple sets of genomic regions, we may merge the counts tables to load them in the same DESeq2 model. For instance, with genes and transposable element counts. A `type` variable is added to keep track of the different region sets in the combined coverage table.
 
 ```R
 coverage <- rbind(coverage.genes, coverage.TEs)
@@ -890,7 +996,7 @@ The data are now ready to be loaded into DESeq2.
 
 ```R
 dds <- DESeq2::DESeqDataSetFromMatrix(
-    countData=as.matrix(coverage[design.tab$sampleName])
+    countData=as.matrix(coverage[design.tab$sampleName]),
     colData=design.tab,
     design= ~ rep + group
 )
@@ -909,7 +1015,7 @@ Finally, the normalization may be computed according to the model.
 dds <- DESeq2::DESeq(dds)
 ```
 
-### 7.3) Normalized counts
+### 7.4) Normalized counts
 
 We can output the normalized coverage values for a set of regions such as, in the following example, genes.
 
@@ -924,7 +1030,7 @@ write.table(
 )
 ```
 
-### 7.4) Samples clustering heatmap and PCA
+### 7.5) Samples clustering heatmap and PCA
 
 Similarly to the [multi-track summary plots](#summary) built earlier, we can produce clustering heatmap and PCA plots with the normalized coverage computed for the DESeq2 model.
 
@@ -963,7 +1069,7 @@ ggplot2::ggsave("/PCA_protein_v_sample.png",
 )
 ```
 
-### 7.5) Differentially marked regions
+### 7.6) Differentially marked regions
 
 Any two pairs of experimental conditions can be compared by the long fold change in the coverage levels over genomic regions. This will ultimately lead to the identification of hypo- and hyper-marked genes and/or TEs in the test experimental conditions vs the control one.
 
@@ -985,7 +1091,7 @@ We can output a table of the log fold change on all regions.
 
 ```R
 write.table(
-    x=data.frame(cbind(id=ids, res))
+    x=data.frame(cbind(id=ids, res)),
     file=paste0("/FDR_protein_on_genes_", compId, "_all.tab"), 
     quote=FALSE, sep="\t", col.names=NA
 )
@@ -1020,4 +1126,96 @@ legend(
     lty=c(NA, NA, "dashed"), lwd=2L, pch=c(15, 15, NA), col=c("grey", "blue", "red")
 )
 dev.off()
+```
+
+## <a id="spikeinv2">8) Spike-In factor noise correction</a>
+
+In a regular ChIP-seq analysis, background noise of IP samples is treated out during the peak calling step of the analysis. But this only applies to the alignments on the reference genome of the studied organism. The noisy exogenous alignments are still contributing to the spike-in facto computation. 
+In order to correct this, the raw count of spike-in reads in the IP samples can be replaced by a sum of the coverage of peaks.
+
+<table align="left" width="2000" cellspacing="0" cellpadding="0">
+    <tr>
+        <td><img src="./images/pipeline_diagrams/diagram_chiprx_5_spikev2.png" align="left" width="1000px"></td>
+    </tr>
+    <tr>
+        <td><a href="./images/pipeline_diagrams/diagram_chiprx_5_spikev2.png?raw=1">⇗Full size image</a></td>
+    </tr>
+    <tr>
+        <td width="1000"><b>Figure 5:</b> Diagram of the spike-in factor noise correction.</td>
+    </tr>
+</table>
+
+### 8.1) Merge bams
+
+Because the number of exogenous reads in the samples tends be rather low, it may be preferable to merge all spike-in input reads and all spike-in IP reads in two merged sets of reads for the input and IP respectively.
+
+```shell
+BAMS_INPUT=(input_sample1_spikein.bam input_sample2_spikein.bam ... input_sampleN_spikein.bam)
+
+sambamba merge -t $THREADS merged_input_samples_spikein.bam ${BAMS_INPUT[@]}
+
+
+BAMS_IP=(IP_sample1.bam IP_sample2.bam ... IP_sampleN.bam)
+
+sambamba merge -t $THREADS merged_input_samples_spikein.bam ${BAMS_IP[@]}
+```
+
+### 8.2) Peak calling
+
+From those merged alignment files, a peak calling is performed to obtain a singe set of peaks on the spike-in genome. Use whatever method in the [peak calling section](#peaks) is appropriate for the experiment (single or paired end, narrow or broad peaks), same a was used for the main peak calling step in the analysis. 
+
+### 8.3) Coverage counts
+The coverge of each IP sample on the set of peaks is then computed.
+  
+```shell
+bedtools multicov \
+    -bams ${BAMS_IP[@]} \
+    -bed merged_samples_spikein.narrowPeak \
+> merged_samples_spikein_peaks_coverage.bed
+```
+
+**Note:** Peak files will either end with `.narrowPeak` or `.broadPeak` depending on the method used.
+
+The corrected IP reads count for each sample is then the sum of its peak coverages.
+
+```shell
+bed=merged_samples_spikein_peaks_coverage.bed
+
+start=$(( $(head -n 1 $bed | grep -o $'\t' | wc -l) - ${#BAMS_IP[@]} + 2 ))
+
+spikein_IP=($(awk -v start=$start '{ for (i=start; i<=NF; i++) a[i]+=$i }END{ for (i=start; i<=NF; i++) printf a[i]" " }' $bed))
+```
+
+Then this corected count is used as previously to compute the scale factor.
+
+<!---
+```shell
+reference_input=$(samtools view \
+    -@ $THREADS \
+    -c input_sample.reference.filtered.masked.nodup.bam \
+)
+
+spikein_input=$(samtools view \
+    -@ $THREADS \
+    -c input_sample.spikein.filtered.nodup.bam \
+)
+
+(( r = 100 * spikein_input / (main_input + spikein_input) ))
+(( FACTOR = r / (10**6 * spikein_IP ) ))
+```
+--->
+
+```shell
+reference_input=$(sambamba view -c \
+    -t $THREADS \
+    input_sample.reference.filtered.masked.nodup.bam \
+)
+
+spikein_input=$(sambamba view -c \
+    -t $THREADS \
+    input_sample.spikein.filtered.nodup.bam \
+)
+
+(( r = 100 * spikein_input / (main_input + spikein_input) ))
+(( FACTOR = r / (10**6 * spikein_IP ) ))
 ```
