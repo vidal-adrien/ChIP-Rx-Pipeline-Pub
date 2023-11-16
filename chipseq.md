@@ -89,12 +89,6 @@ STAR --runMode genomeGenerate \
   --genomeDir STAR_index/
 ```
 
-Some tools will require a two column file with the id and length of the chromosomes which can be generated as follows:
-
-```shell 
-cat reference_genome.bed | cut -f 1,3 > reference_chromosome_sizes.txt
-```
-
 <a id="bt2indexing"></a>
 Finally, for the purpose of performing [contamination screening](#fastqscreen) with [fastq_screen](https://www.bioinformatics.babraham.ac.uk/projects/fastq_screen/), the the reference genome should be indexed for [bowtie2](https://bowtie-bio.sourceforge.net/bowtie2/index.shtml) using the [bowtie2-build](https://bowtie-bio.sourceforge.net/bowtie2/manual.shtml#the-bowtie2-build-indexer) command.
 

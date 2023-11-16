@@ -25,8 +25,9 @@ The following programs are used in this pipeline:
 * [bowtie2](https://bowtie-bio.sourceforge.net/bowtie2/index.shtml) (optional).
 * The [sambamba](http://lomereiter.github.io/sambamba/) toolkit (optionally [samtools](https://www.htslib.org/)*).
 * The [bedtools](https://bedtools.readthedocs.io/en/latest/index.html) toolkit.
-* [MACS2](https://pypi.org/project/MACS2/) (requires python3).
-* The [deeptools](https://deeptools.readthedocs.io/en/develop/) toolkit (requires python3).
+* [MACS2](https://pypi.org/project/MACS2/) (requires [python3](https://www.python.org/)).
+* [epic2](https://github.com/biocore-ntnu/epic2) (optional, requires [python3](https://www.python.org/) and [conda](https://docs.conda.io/en/latest/))
+* The [deeptools](https://deeptools.readthedocs.io/en/develop/) toolkit (requires [python3](https://www.python.org/)).
 * The [R](https://www.r-project.org/) language with the following packages:
   * [DESeq2](https://bioconductor.org/packages/release/bioc/html/DESeq2.html)
   * [gplots](https://cran.r-project.org/web/packages/gplots/)
@@ -97,13 +98,6 @@ STAR --runMode genomeGenerate \
   --genomeSAindexNbases NBASES \
   --genomeFastaFiles reference+spikein_genome.fasta \
   --genomeDir STAR_index
-```
-
-Some tools will require a two column file with the id and length of the chromosomes which can be generated as follows:
-
-```shell
-cat reference_genome.bed | cut -f 1,3 > reference_chromosome_sizes.txt
-cat reference+spikein_genome.bed | cut -f 1,3 > reference+spikein_chromosome_sizes.txt
 ```
 
 <a id="bt2indexing"></a>
@@ -712,6 +706,58 @@ mergeOverlappingRegions.sh \
 
 --->
 
+### 5.3) Diffuse domains
+
+This method is particularly relevant to the special case of H3K27me3 on *Drosophila melanogaster* (used as the spike-in control on which the peak calling is needed for [noise correction](#spikeinv2) of the spike-in factor).
+In this case, the mark is spread diffusely over wide domains which macs2 is unable to detect as peaks, leading it to end in failure. [epic2](https://github.com/biocore-ntnu/epic2), a reimplementation of [SICER2](https://github.com/zanglab/SICER2) which allows the detection of such domains can be used as an alternative to macs2.
+
+**Note:** To install the latest version of [epic2](https://github.com/biocore-ntnu/epic2), it may be necessary to use the `conda-forge` source:
+```shell
+conda install -c conda-forge -c bioconda epic2=$version
+```
+
+This tool requires a two column file giving the length of each chromosome in base pairs. Such a file can be obtained using `samtools faidx` on the genome assembly's `.fasta` file and cutting the first two columns.
+
+```shell
+samtools faidx genome.fasta
+cat genome.fasta.fai | cut -f1,2 > chromosome_sizes.tab
+```
+
+The single-end application requires giving the fragment size. Finally, the peaks can be filtered by their FDR-corrected p-value.
+
+**Example single-end diffuse domains calling command:**
+
+```shell
+epic2 --fragment-size 250
+    --chromsizes chromosome_sizes.tab
+    --false-discovery-rate-cutoff 0.05
+    --treatment IP_sample.reference.filtered.masked.nodup.bam
+    --control input_sample.reference.filtered.masked.nodup.bam
+    --output sample.peaks.bed
+```
+
+**Example paired-end diffuse domains calling command:**
+
+```shell
+epic2 --guess-bampe
+    --chromsizes chromosome_sizes.tab
+    --false-discovery-rate-cutoff 0.05
+    --treatment IP_sample.reference.filtered.masked.nodup.bam
+    --control input_sample.reference.filtered.masked.nodup.bam
+    --output sample.peaks.bed
+```
+
+The output file can be rearanged into a more standard [bed](https://samtools.github.io/hts-specs/BEDv1.pdf) format similar to macs2's output. This also avoids [IGV](https://igv.org/) misinterpreting the format of the file.
+
+```shell
+printf "#Chromosome\tStart\tEnd\tName\tScore\tStrand\tlog2FoldChange\tpValue\tFDR\tChIPCount\tInputCount\n" >> sample.peaks.bed.tmp
+
+cat ${output_peaks} | awk -v FS='\t' -v OFS='\t' 'NR>1 {print $1, $2, $3, "peak"NR-1, $5, $6, $10, $4, $9, $7, $8}' >> sample.peaks.bed.tmp
+
+rm sample.peaks.bed
+mv sample.peaks.bed.tmp sample.peaks.bedss
+```
+
 ### <a id="annotation">5.3) Peak annotation</a>
 
 Using the [bedtools intersect](https://bedtools.readthedocs.io/en/latest/content/tools/intersect.html) command, we can discover which genomic regions (such as genes, transposable elements or any other loci of interest) are covered by peaks. This requires the use of a `.bed` file of the genomic regions of interest. By using the `-wo` option and filtering with `awk`, we can remove intersections under a certain length in base pair. The -sorted option makes the operation more efficient but requires the input files to be sorted by position (use [bedtools sort](https://bedtools.readthedocs.io/en/latest/content/tools/sort.html) if necessary). The peak files already are sorted `.bed` files. `cut` is then used to extract the column of region identifiers to obtain a set of regions without duplicates using `sort` and `uniq`. `grep` is then used to extract the lines in the original regions file which corresponds to those identifiers. Finally, bedtols can be used to sort the resulting bed file by positions.
@@ -1162,7 +1208,7 @@ sambamba merge -t $THREADS merged_input_samples_spikein.bam ${BAMS_IP[@]}
 
 ### 8.2) Peak calling
 
-From those merged alignment files, a peak calling is performed to obtain a singe set of peaks on the spike-in genome. Use whatever method in the [peak calling section](#peaks) is appropriate for the experiment (single or paired end, narrow or broad peaks), same a was used for the main peak calling step in the analysis. 
+From those merged alignment files, a peak calling is performed to obtain a singe set of peaks on the spike-in genome. Use whatever method in the [peak calling section](#peaks) is appropriate for the experiment (single or paired end, narrow or broad peaks), same a was used for the main peak calling step in the analysis.
 
 ### 8.3) Coverage counts
 The coverge of each IP sample on the set of peaks is then computed.
