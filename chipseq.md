@@ -151,7 +151,7 @@ To be run for each `.fastq` reads file in the analysis.
 
 ## 3) Reads data processing and alignment
 
-The pipeline for producing .bam map files from fastq sequencing files. For each map to produce, one fastq file is needed for single-end mapping while two files (one for the first mate and one for the second mate sequencing) are required for pair-end mapping. The input files may used in a compressed `.gz` archive.
+The pipeline for producing `.bam` alignment files from fastq sequencing files. For each map to produce, one fastq file is needed for single-end mapping while two files (one for the first mate and one for the second mate sequencing) are required for pair-end mapping. The input files may used in a compressed `.gz` archive.
 
 ### 3.1) Read trimming
 
@@ -210,7 +210,8 @@ The `--readFilesIn` argument is used to indicate the input read file. If two fil
 
 The `--outFilterMismatchNmax` argument limits the number of allowed mismatches in each alignment. The `--outSAMmultNmax` determines how many alignments may be given for each read and `--outMultimapperOrder` determines how alignments are picked out of others with equal quality. Finally, the `--outFilterMultimapNmax` may be added to determine for how many alignments a multimapping read will be filtered out entirely. Note that this filter is applied by default with a value of 10 even if the argument is not specified. More information can be found in the [STAR manual](https://raw.githubusercontent.com/alexdobin/STAR/master/doc/STARmanual.pdf).
 
-Finally we index the alignment map with [samtools index](http://www.htslib.org/doc/samtools-index.html).
+Finally we index the alignment map with [sambamba index](https://lomereiter.github.io/sambamba/docs/sambamba-index.html).
+<!--- Finally we index the alignment map with [samtools index](http://www.htslib.org/doc/samtools-index.html). --->
 
 **Example single-end STAR alignment command:**
 <!---
@@ -250,7 +251,8 @@ sambamba index -t $THREADS sample_Aligned.sortedByCoord.out.bam
 
 ### 3.3) Reads filtering
 
-Filters are applied using <!---[samtools view](https://www.htslib.org/doc/samtools-view.html) ---> [sambamba view](https://lomereiter.github.io/sambamba/docs/sambamba-view.html). The flag used to filter ecompasses the following:
+Filters are applied using  [sambamba view](https://lomereiter.github.io/sambamba/docs/sambamba-view.html). The flag used to filter ecompasses the following:
+<!--- Filters are applied using [samtools view](https://www.htslib.org/doc/samtools-view.html). The flag used to filter ecompasses the following: --->
 
 |2572||
 |:----|:--------------------------------------------|
@@ -311,7 +313,8 @@ To be run for each sample in the analysis.
 
 ### <a id="masking">3.5) Masking genomic regions</a>
 
-Some problematic regions of the genome can be filtered out from the alignment files.  The `-L` option of <!--- [samtools view](https://www.htslib.org/doc/samtools-view.html) ---> [sambamba view](https://lomereiter.github.io/sambamba/docs/sambamba-view.html) allows making a selection of regions using a `.bed` file. This step can also be used to remove chromosomes we don't want to study at all such as the mitochondrial and chloroplastic chromosomes when studying the nucleic chromosomes only.
+<!--- [samtools view](https://www.htslib.org/doc/samtools-view.html) --->
+Some problematic regions of the genome can be filtered out from the alignment files.  The `-L` option of [sambamba view](https://lomereiter.github.io/sambamba/docs/sambamba-view.html) allows making a selection of regions using a `.bed` file. This step can also be used to remove chromosomes we don't want to study at all such as the mitochondrial and chloroplastic chromosomes when studying the nucleic chromosomes only.
 
 **Example masking script:**
 <!---
@@ -354,7 +357,7 @@ It is however advised to keep intermediate files if possible to be able to resum
 
 ## 4) Genomic tracks
 
-This section deals with the various types of genomic tracks we may want to build in order to visualize them on the [Integrative Genomic Browser](https://igv.org/). Genomic tracks may be in `.bedgraph` (plain text) or `.bigwig` (indexed binary) format. The [bamCoverage](https://deeptools.readthedocs.io/en/develop/content/tools/bamCoverage.html) command from [deeptools](https://deeptools.readthedocs.io/en/develop/) is used to produce them.
+This section deals with the various types of genomic tracks we may want to build in order to visualize them on the [Integrative Genomic Browser](https://igv.org/) as well as produce metaplots. Genomic tracks may be in `.bedgraph` (plain text) or `.bigwig` (indexed binary) format. The [bamCoverage](https://deeptools.readthedocs.io/en/develop/content/tools/bamCoverage.html) command from [deeptools](https://deeptools.readthedocs.io/en/develop/) is used to produce them.
 
 ### 4.1) Normalized tracks
 

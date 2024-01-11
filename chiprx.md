@@ -64,7 +64,8 @@ The studied organism's referrence genome, together with the foreign genome of th
 First, we need to create a combined main orgasnism + spike-in `.fasta` genome file. The chromosomes belonging to the spike-in genome should all be denoted by a common tag that will be used to more easily separate the alignments between genomes later. This can be done with the following command:
 
 ```shell
-cat spikein_genome.bed | sed "s/>/>$SPIKE_IN_TAG/" >> reference+spikein_genome.bed
+cp reference_genome.fasta reference+spikein_genome.fasta
+cat spikein_genome.fasta | sed "s/>/>$SPIKE_IN_TAG/" >> reference+spikein_genome.fasta
 ```
 
 The STAR manual advises using the following formula to calculate the value for the `--genomeSAindexNbases` argument of its indexing mode:
@@ -167,7 +168,7 @@ To be run for each `.fastq` reads file in the analysis.
 
 ## 3) Data processing and alignment
 
-The pipeline for producing .bam map files from fastq sequencing files. For each map to produce, one fastq file is needed for single-end mapping while two files (one for the first mate and one for the second mate sequencing) are required for paired-end mapping. The input files may used in a compressed `.gz` archive.
+The pipeline for producing `.bam` alignment files from fastq sequencing files. For each map to produce, one fastq file is needed for single-end mapping while two files (one for the first mate and one for the second mate sequencing) are required for paired-end mapping. The input files may used in a compressed `.gz` archive.
 
 ### 3.1) Read trimming
 
@@ -228,7 +229,8 @@ The `--readFilesIn` argument is used to indicate the input read file. If two fil
 
 The `--outFilterMismatchNmax` argument limits the number of allowed mismatches in each alignment. The `--outSAMmultNmax` determines how many alignments may be given for each read and `--outMultimapperOrder` determines how alignments are picked out of others with equal quality. Finally, the `--outFilterMultimapNmax` may be added to determine for how many alignments a multimapping read will be filtered out entirely. Note that this filter is applied by default with a value of 10 even if the argument is not specified. More information can be found in the [STAR manual](https://raw.githubusercontent.com/alexdobin/STAR/master/doc/STARmanual.pdf).
 
-Finally we index the alignment map with <!--- [samtools index](http://www.htslib.org/doc/samtools-index.html) ---> [sambamba index](https://lomereiter.github.io/sambamba/docs/sambamba-index.html).
+<!--- Finally we index the alignment map with [samtools index](http://www.htslib.org/doc/samtools-index.html) --->
+Finally we index the alignment map with [sambamba index](https://lomereiter.github.io/sambamba/docs/sambamba-index.html).
 
 **Example single-end STAR alignment command:**
 <!---
@@ -268,7 +270,8 @@ sambamba index -t $THREADS sample_Aligned.sortedByCoord.out.bam
 
 ### 3.3) Reads filtering
 
-Filters are applied using <!---[samtools view](https://www.htslib.org/doc/samtools-view.html) ---> [sambamba view](https://lomereiter.github.io/sambamba/docs/sambamba-view.html). The flag used to filter ecompasses the following:
+Filters are applied using [sambamba view](https://lomereiter.github.io/sambamba/docs/sambamba-view.html). The flag used to filter ecompasses the following:
+<!--- Filters are applied using [samtools view](https://www.htslib.org/doc/samtools-view.html). The flag used to filter ecompasses the following: --->
 
 
 | 2572   |                                            |
@@ -330,7 +333,8 @@ To be run for each sample in the analysis.
 
 ### 3.5) Splitting reads between reference and spike-in
 
-The reads aligned to the studied organism's reference genome must be separated from the reads aligned to the foreign genome added as a Spike-In control. For this purpose, we can use the `-L` option for <!--- [samtools view](https://www.htslib.org/doc/samtools-view.html) ---> [sambamba view](https://lomereiter.github.io/sambamba/docs/sambamba-view.html) to filter the reads using the regions that do or do not contain the tag added when adding the spike in genome to the reference genome.
+<!--- [samtools view](https://www.htslib.org/doc/samtools-view.html) --->
+The reads aligned to the studied organism's reference genome must be separated from the reads aligned to the foreign genome added as a Spike-In control. For this purpose, we can use the `-L` option for [sambamba view](https://lomereiter.github.io/sambamba/docs/sambamba-view.html) to filter the reads using the regions that do or do not contain the tag added when adding the spike in genome to the reference genome.
 
 **Example split script:**
 <!---
@@ -372,7 +376,8 @@ To be run for each sample in the analysis.
 
 ### <a id="masking">3.6) Masking genomic regions</a>
 
-Some problematic regions of the genome can be filtered out from the alignment files.  The `-L` option of <!--- [samtools view](https://www.htslib.org/doc/samtools-view.html) ---> [sambamba view](https://lomereiter.github.io/sambamba/docs/sambamba-view.html) allows making a selection of regions using a `.bed` file. This step can also be used to remove chromosomes we don't want to study at all such as the mitochondrial and chloroplastic chromosomes when studying the nucleic chromosomes only.
+<!--- [samtools view](https://www.htslib.org/doc/samtools-view.html) --->
+Some problematic regions of the genome can be filtered out from the alignment files.  The `-L` option of [sambamba view](https://lomereiter.github.io/sambamba/docs/sambamba-view.html) allows making a selection of regions using a `.bed` file. This step can also be used to remove chromosomes we don't want to study at all such as the mitochondrial and chloroplastic chromosomes when studying the nucleic chromosomes only.
 
 **Example masking script:**
 <!---
@@ -465,9 +470,8 @@ spikein_IP=$(sambamba view -c \
 
 To be run for each experimental condition in the analysis.
 
-This way of computing the spike-in factor however suffers from the noisiness of the spike-in IP samples. A more advanced way of obtaining a read count for the spike-in IP is detailed in section X (LINK).
-
-### 3.8) Cleaning up (optional)
+This way of computing the spike-in factor however suffers from the noisiness of the spike-in IP samples. A more advanced way of obtaining a read count for the spike-in IP is detailed in the [noise correction section](#spikeinv2).
+.8) Cleaning up (optional)
 
 The pipeline, as presented, creates many heavy intermediate files which allows for easy backtracking but is not economical in terms of disk space.
 
@@ -477,7 +481,7 @@ It is however advised to keep intermediate files if possible to be able to resum
 
 ## 4) Genomic tracks
 
-This section deals with the various types of genomic tracks we may want to build in order to visualize them on the [Integrative Genomic Browser](https://igv.org/). Genomic tracks may be in `.bedgraph` (plain text) or `.bigwig` (indexed binary) format. The [bamCoverage](https://deeptools.readthedocs.io/en/develop/content/tools/bamCoverage.html) command from [deeptools](https://deeptools.readthedocs.io/en/develop/) is used to produce them.
+This section deals with the various types of genomic tracks we may want to build in order to visualize them on the [Integrative Genomic Browser](https://igv.org/) as well as produce metaplots. Genomic tracks may be in `.bedgraph` (plain text) or `.bigwig` (indexed binary) format. The [bamCoverage](https://deeptools.readthedocs.io/en/develop/content/tools/bamCoverage.html) command from [deeptools](https://deeptools.readthedocs.io/en/develop/) is used to produce them.
 
 The following instructions will describe how to make both normalized tracks and tracks scaled by the spike-in factor. It is advised to produce both types of tracks for comparison.
 
@@ -708,7 +712,7 @@ mergeOverlappingRegions.sh \
 
 ### 5.3) Diffuse domains
 
-This method is particularly relevant to the special case of H3K27me3 on *Drosophila melanogaster* (used as the spike-in control on which the peak calling is needed for [noise correction](#spikeinv2) of the spike-in factor).
+This method is particularly relevant to the case of H3K27me3 on *Drosophila melanogaster* (used as the spike-in control for which peak calling is needed for [noise correction](#spikeinv2) of the spike-in factor) but it might apply to other similar cases.
 In this case, the mark is spread diffusely over wide domains which macs2 is unable to detect as peaks, leading it to end in failure. [epic2](https://github.com/biocore-ntnu/epic2), a reimplementation of [SICER2](https://github.com/zanglab/SICER2) which allows the detection of such domains can be used as an alternative to macs2.
 
 **Note:** To install the latest version of [epic2](https://github.com/biocore-ntnu/epic2), it may be necessary to use the `conda-forge` source:
