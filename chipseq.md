@@ -153,6 +153,17 @@ To be run for each `.fastq` reads file in the analysis.
 
 The pipeline for producing `.bam` alignment files from fastq sequencing files. For each map to produce, one fastq file is needed for single-end mapping while two files (one for the first mate and one for the second mate sequencing) are required for pair-end mapping. The input files may used in a compressed `.gz` archive.
 
+**Note: `fastq.bz2` files:** another popular compression format for fastq and other files is `.bz2`. While many tools supposedly support it natively as they do with `.gz`, some of the tools (*e.g* fastq_screen, trimmomatic) used in this pipeline presented issues when trying to use this format as input. Files can be converted from one format to the other like so:
+```shell
+bzcat file.fastq.bz2 | gzip - > file.fastq.gz
+```
+
+**Note: multiple files per sample:** Sometimes the reads of a sample may be split between several files. These files will need to be merged into a single file like so:
+```shell
+cat sample_file1.fastq sample_file2.fastq > sample.fastq
+```
+This command can be used with files compressed in a `.gz` or `.bz2` format (all in the same format) since pasting multiple of these archives as if they were plain text will result in a valid archive of that format. This may not work with other archive formats.
+
 ### 3.1) Read trimming
 
 The [Trimmomatic](http://www.usadellab.org/cms/?page=trimmomatic) tool is used to trim the reads. The command is different between single-end and pair-end applications.
@@ -355,114 +366,11 @@ The only map files which are necessary for any further work are the files produc
 
 It is however advised to keep intermediate files if possible to be able to resume from any step if needed.
 
-## 4) Genomic tracks
-
-This section deals with the various types of genomic tracks we may want to build in order to visualize them on the [Integrative Genomic Browser](https://igv.org/) as well as produce metaplots. Genomic tracks may be in `.bedgraph` (plain text) or `.bigwig` (indexed binary) format. The [bamCoverage](https://deeptools.readthedocs.io/en/develop/content/tools/bamCoverage.html) command from [deeptools](https://deeptools.readthedocs.io/en/develop/) is used to produce them.
-
-### 4.1) Normalized tracks
-
-RPKM normalization can be applied to generate comparable genomic tracks. The bin size will determine the resolution of the track. Optionally, the track may be smoothed for the purpose of visualization using the `--smoothLength` argument.
-The commands for single-end or paired-end differ in that the `-e` (extend reads) option must be followed with a value for the fragents length for single-end cases while this is automaticaly determined by the read mates in paired-end cases.
-
-**Example single-end normalized tracks script:**
-```shell
-bamCoverage -e $FRAGLENGTH \
-    -p $THREAD \
-    -bs $BINSIZE \
-    -of bigwig \
-    --normalizeUsing RPKM \
-    --smoothLength $SMOOTH \
-    -b sample.filtered.masked.nodup.bam \
-    -o sample.RPKM.bigwig
-```
-
-**Example paired-end normalized tracks script:**
-```shell
-bamCoverage -e $FRAGLENGTH \
-    -p $THREAD \
-    -bs $BINSIZE \
-    -of bigwig \
-    --normalizeUsing RPKM \
-    --smoothLength $SMOOTH \
-    -b sample.filtered.masked.nodup.bam \
-    -o sample.RPKM.bigwig
-```
-
-This can be repeated for each sample in the analysis whether input or IP.
-
-### 4.2) Tracks comparison
-
-Two tracks can be contrasted against each-other by generating a comparison track with the [bigwigCompare](https://deeptools.readthedocs.io/en/develop/content/tools/bigwigCompare.html) command from deeptools. This is useful to average biological replicates, generate IP/input tracks or compare two experimental conditions. The default comparisson is a log 2 fold change but other options are available with the `--operation` argument.
-
-The given tracks must have the same bin size and they should be normalized or scaled appropriately to make the comparison meaningful. 
-
-**Example tracks comparison script:**
-```shell
-bigwigCompare \
-    -p  $THREADS \
-    -bs $BINSIZE \
-    -of bigwig \
-    -b1 sample1.bigwig \
-    -b2 sample2.bigwig \
-    -o  sample1_v_sample2.bigwig
-```
-
-### <a id="summary">4.3) Multi-track summary plots</a>
-
-The [deeptools](https://deeptools.readthedocs.io/en/develop/) toolkit also allows making summary comparisons between many tracks using the [multiBigwigSummary](https://deeptools.readthedocs.io/en/develop/content/tools/multiBigwigSummary.html) command from deeptools and using various plotting commands on its output. In this case we create a PCA plot using [plotPCA](https://deeptools.readthedocs.io/en/develop/content/tools/plotPCA.html?highlight=plotPCA) and a correlation matrix using [plotCorrelation](https://deeptools.readthedocs.io/en/develop/content/tools/plotCorrelation.html?highlight=plotCorrelation).
-
-The given tracks must have the same bin size and they should be normalized or scaled appropriately to make the comparison meaningful.
-
-Since the `--colors` arguments can use HTML color codes, the [color palette functions](https://stat.ethz.ch/R-manual/R-devel/library/grDevices/html/palettes.html) from the [R language](https://www.r-project.org/) are a practical way to find an appropriate color range for any number of tracks.
-
-**Example tracks summary plots script:**
-```shell
-TRACKS=(sample1.bigwig sample2.bigwig ... sampleN.bigwig)
-LABELS=(sample1 sample2 ... sampleN)
-    
-multiBigwigSummary bins \
-    -p $THREADS \
-    -out summary.npz \
-    -b ${TRACKS[@]} \
-    --labels ${LABELS[@]}
-    
-    
-COLORS=($(Rscript -e "writeLines(paste(rainbow(${#TRACKS[@]}), collapse=' '))"))
-    
-plotPCA \
-    --transpose \
-    --corData summary.npz \
-    --plotFile PCA.pdf \
-    --plotFileFormat pdf \
-    --colors ${COLORS[@]}
-    
-plotCorrelation \ 
-    --corData summary.npz \
-    --corMethod spearman \
-    --whatToPlot heatmap \
-    --plotNumbers \
-    --plotFile spearman.pdf
-```
-
-Alternatively to using `.bigwig` tracks, the [multiBamSummary](https://deeptools.readthedocs.io/en/develop/content/tools/multiBamSummary.html?highlight=multiBamSummary) command can be used from `.bam` files. Using `.bigwig` files is preferable simply because they can be normalized or scaled before comparison.
-
-<table align="left" width="450" cellspacing="0" cellpadding="0">
-    <tr>
-        <td><img src="./images/pipeline_diagrams/diagram_chipseq_2_peaks+annotation.png" align="left" width="450px"></td>
-    </tr>
-    <tr>
-        <td><a href="./images/pipeline_diagrams/diagram_chipseq_2_peaks+annotation.png?raw=1">⇗Full size image</a></td>
-    </tr>
-    <tr>
-        <td width="450"><b>Figure 2:</b> Diagram of peak calling and annotation.</td>
-    </tr>
-</table>
-
-## 5) Peak calling and annotation
+## 4) Peak calling and annotation
 
 Peak calling is used to discover genomic regions that are highly enriched in alligned reads. It is done using the [macs2 callpeak](https://hbctraining.github.io/Intro-to-ChIPseq/lessons/05_peak_calling_macs.html) command. The input and IP samples for an experimental condition are required. The command is different between single-end and pair-end applications. A p-value threshold (`-q` argument) of 0.01 is a good starting point but it must be evaluated empirically for each study.
 
-### 5.1) Narrow peaks
+### 4.1) Narrow peaks
 
 The default mode is to call narrow peaks. This mode is sufficient for most applications. 
 
@@ -490,7 +398,7 @@ macs2 callpeak \
     -c input_sample.filtered.masked.nodup.bam \
     -n sample
 ```
-### 5.2) Broad peaks
+### 4.2) Broad peaks
 
 Broad peak calling is preferable for studying chromatin marks or binding protein that span over several nucleosomes such as marks covering entire gene bodies (Ex. H2Bub, H3K36me3 or H3K27me3). It does the same peak detection as the narrow peak mode but then attempts to merge nearby highly enriched regions into broad regions. 
 
@@ -546,7 +454,7 @@ mergeOverlappingRegions.sh \
 
 --->
 
-### <a id="annotation">5.3) Peak annotation</a>
+### <a id="annotation">4.3) Peak annotation</a>
 
 Using the [bedtools intersect](https://bedtools.readthedocs.io/en/latest/content/tools/intersect.html) command, we can discover which genomic regions (such as genes, transposable elements or any other loci of interest) are covered by peaks. This requires the use of a `.bed` file of the genomic regions of interest. By using the `-wo` option and filtering with `awk`, we can remove intersections under a certain length in base pair. The -sorted option makes the operation more efficient but requires the input files to be sorted by position (use [bedtools sort](https://bedtools.readthedocs.io/en/latest/content/tools/sort.html) if necessary). The peak files already are sorted `.bed` files. `cut` is then used to extract the column of region identifiers to obtain a set of regions without duplicates using `sort` and `uniq`. `grep` is then used to extract the lines in the original regions file which corresponds to those identifiers. Finally, bedtols can be used to sort the resulting bed file by positions.
 
@@ -589,6 +497,109 @@ grep -Ff  all_marked_regions.txt regions.bed > all_marked_regions.bed
     </tr>
     <tr>
         <td width="1000"><b>Figure 3:</b> Diagram of metaplot building.</td>
+    </tr>
+</table>
+
+## 5) Genomic tracks
+
+This section deals with the various types of genomic tracks we may want to build in order to visualize them on the [Integrative Genomic Browser](https://igv.org/) as well as produce metaplots. Genomic tracks may be in `.bedgraph` (plain text) or `.bigwig` (indexed binary) format. The [bamCoverage](https://deeptools.readthedocs.io/en/develop/content/tools/bamCoverage.html) command from [deeptools](https://deeptools.readthedocs.io/en/develop/) is used to produce them.
+
+### 5.1) Normalized tracks
+
+RPKM normalization can be applied to generate comparable genomic tracks. The bin size will determine the resolution of the track. Optionally, the track may be smoothed for the purpose of visualization using the `--smoothLength` argument.
+The commands for single-end or paired-end differ in that the `-e` (extend reads) option must be followed with a value for the fragents length for single-end cases while this is automaticaly determined by the read mates in paired-end cases.
+
+**Example single-end normalized tracks script:**
+```shell
+bamCoverage -e $FRAGLENGTH \
+    -p $THREAD \
+    -bs $BINSIZE \
+    -of bigwig \
+    --normalizeUsing RPKM \
+    --smoothLength $SMOOTH \
+    -b sample.filtered.masked.nodup.bam \
+    -o sample.RPKM.bigwig
+```
+
+**Example paired-end normalized tracks script:**
+```shell
+bamCoverage -e \
+    -p $THREAD \
+    -bs $BINSIZE \
+    -of bigwig \
+    --normalizeUsing RPKM \
+    --smoothLength $SMOOTH \
+    -b sample.filtered.masked.nodup.bam \
+    -o sample.RPKM.bigwig
+```
+
+This can be repeated for each sample in the analysis whether input or IP.
+
+### 5.2) Tracks comparison
+
+Two tracks can be contrasted against each-other by generating a comparison track with the [bigwigCompare](https://deeptools.readthedocs.io/en/develop/content/tools/bigwigCompare.html) command from deeptools. This is useful to average biological replicates, generate IP/input tracks or compare two experimental conditions. The default comparisson is a log 2 fold change but other options are available with the `--operation` argument.
+
+The given tracks must have the same bin size and they should be normalized or scaled appropriately to make the comparison meaningful. 
+
+**Example tracks comparison script:**
+```shell
+bigwigCompare \
+    -p  $THREADS \
+    -bs $BINSIZE \
+    -of bigwig \
+    -b1 sample1.bigwig \
+    -b2 sample2.bigwig \
+    -o  sample1_v_sample2.bigwig
+```
+
+### <a id="summary">5.3) Multi-track summary plots</a>
+
+The [deeptools](https://deeptools.readthedocs.io/en/develop/) toolkit also allows making summary comparisons between many tracks using the [multiBigwigSummary](https://deeptools.readthedocs.io/en/develop/content/tools/multiBigwigSummary.html) command from deeptools and using various plotting commands on its output. In this case we create a PCA plot using [plotPCA](https://deeptools.readthedocs.io/en/develop/content/tools/plotPCA.html?highlight=plotPCA) and a correlation matrix using [plotCorrelation](https://deeptools.readthedocs.io/en/develop/content/tools/plotCorrelation.html?highlight=plotCorrelation).
+
+The given tracks must have the same bin size and they should be normalized or scaled appropriately to make the comparison meaningful.
+
+Since the `--colors` arguments can use HTML color codes, the [color palette functions](https://stat.ethz.ch/R-manual/R-devel/library/grDevices/html/palettes.html) from the [R language](https://www.r-project.org/) are a practical way to find an appropriate color range for any number of tracks.
+
+**Example tracks summary plots script:**
+```shell
+TRACKS=(sample1.bigwig sample2.bigwig ... sampleN.bigwig)
+LABELS=(sample1 sample2 ... sampleN)
+    
+multiBigwigSummary bins \
+    -p $THREADS \
+    -out summary.npz \
+    -b ${TRACKS[@]} \
+    --labels ${LABELS[@]}
+    
+    
+COLORS=($(Rscript -e "writeLines(paste(rainbow(${#TRACKS[@]}), collapse=' '))"))
+    
+plotPCA \
+    --transpose \
+    --corData summary.npz \
+    --plotFile PCA.pdf \
+    --plotFileFormat pdf \
+    --colors ${COLORS[@]}
+    
+plotCorrelation \ 
+    --corData summary.npz \
+    --corMethod spearman \
+    --whatToPlot heatmap \
+    --plotNumbers \
+    --plotFile spearman.pdf
+```
+
+Alternatively to using `.bigwig` tracks, the [multiBamSummary](https://deeptools.readthedocs.io/en/develop/content/tools/multiBamSummary.html?highlight=multiBamSummary) command can be used from `.bam` files. Using `.bigwig` files is preferable simply because they can be normalized or scaled before comparison.
+
+<table align="left" width="450" cellspacing="0" cellpadding="0">
+    <tr>
+        <td><img src="./images/pipeline_diagrams/diagram_chipseq_2_peaks+annotation.png" align="left" width="450px"></td>
+    </tr>
+    <tr>
+        <td><a href="./images/pipeline_diagrams/diagram_chipseq_2_peaks+annotation.png?raw=1">⇗Full size image</a></td>
+    </tr>
+    <tr>
+        <td width="450"><b>Figure 2:</b> Diagram of peak calling and annotation.</td>
     </tr>
 </table>
 
@@ -934,7 +945,7 @@ A scatter plot of the log fold change against the mean of normalized count (call
 ```R
 pval.thr <- 0.01
 png(paste0(dirMAPlots_auto_genes, "/MA_protein_on_genes_", compId, ".png"), width=800L, height=800L)
-DESeq2::plotMA(res, alpha=pval.thr, main=paste0("Genes: ", g1, " vs ", g2), ylim=c(-4,4))
+DESeq2::plotMA(res, alpha=pval.thr, main=paste0("Genes: ", g1, " vs ", g2), ylim=c(-4, 4))
 legend( 
     x="bottomleft",
     legend=c(

@@ -170,6 +170,17 @@ To be run for each `.fastq` reads file in the analysis.
 
 The pipeline for producing `.bam` alignment files from fastq sequencing files. For each map to produce, one fastq file is needed for single-end mapping while two files (one for the first mate and one for the second mate sequencing) are required for paired-end mapping. The input files may used in a compressed `.gz` archive.
 
+**Note: `fastq.bz2` files:** another popular compression format for fastq and other files is `.bz2`. While many tools supposedly support it natively as they do with `.gz`, some of the tools (*e.g* fastq_screen, trimmomatic) used in this pipeline presented issues when trying to use this format as input. Files can be converted from one format to the other like so:
+```shell
+bzcat file.fastq.bz2 | gzip - > file.fastq.gz
+```
+
+**Note: multiple files per sample:** Sometimes the reads of a sample may be split between several files. These files will need to be merged into a single file like so:
+```shell
+cat sample_file1.fastq sample_file2.fastq > sample.fastq
+```
+This command can be used with files compressed in a `.gz` or `.bz2` format (all in the same format) since pasting multiple of these archives as if they were plain text will result in a valid archive of that format. This may not work with other archive formats.
+
 ### 3.1) Read trimming
 
 The [Trimmomatic](http://www.usadellab.org/cms/?page=trimmomatic) tool is used to trim the reads. The command is different between single-end and paired-end applications.
@@ -410,68 +421,7 @@ bedtools subtract -a reference_genome.bed -b blacklist.bed > selection.bed
 
 To be run for each sample in the analysis.
 
-### <a id="spikeinfactors">3.7) Spike-In factors</a>
-
-When using a Spike-In control to compare the sequencing depth of samples, we compute a scaling factor for each sample. To compute the scaling factor, the input and IP samples for an experimental condition are required, each having been split into their main organism and spike-in parts.
-
-First, the percentage *r* of spike-in reads in each experimental condition is computed using the input sample read counts:
-
-$$r=100*\frac{C^{Input}\_{Spike-in}}{C^{Input}\_{Reference}+C^{Input}\_{Spike-in}}$$
-
-Then the spike-in factor is computed as follows:
-
-$$F=\frac{r}{10^6*C^{IP}\_{Spike-in}}$$
-
-With *C* the read counts for a given sample (input or IP) and partition (reference or spike-in).
-
-**Example spike-in scale factor computation script:**
-
-<!---
-```shell
-reference_input=$(samtools view -c \
-    -@ $THREADS \
-    input_sample.reference.filtered.masked.nodup.bam \
-)
-
-spikein_input=$(samtools view -c \
-    -@ $THREADS \
-    input_sample.spikein.filtered.nodup.bam \
-)
-
-spikein_IP=$(samtools view -c \
-    -@ $THREADS \
-    IP_sample.spikein.filtered.nodup.bam \
-)
-
-(( r = 100 * spikein_input / (reference_input + spikein_input) ))
-(( FACTOR = r / (10**6 * spikein_IP ) ))
-```
---->
-
-```shell
-reference_input=$(sambamba view -c \
-    -t $THREADS \
-    input_sample.reference.filtered.masked.nodup.bam \
-)
-
-spikein_input=$(sambamba view -c \
-    -t $THREADS \
-    input_sample.spikein.filtered.nodup.bam \
-)
-
-spikein_IP=$(sambamba view -c \
-    -t $THREADS \
-    IP_sample.spikein.filtered.nodup.bam \
-)
-
-(( r = 100 * spikein_input / (reference_input + spikein_input) ))
-(( FACTOR = r / (10**6 * spikein_IP ) ))
-```
-
-To be run for each experimental condition in the analysis.
-
-This way of computing the spike-in factor however suffers from the noisiness of the spike-in IP samples. A more advanced way of obtaining a read count for the spike-in IP is detailed in the [noise correction section](#spikeinv2).
-.8) Cleaning up (optional)
+### 3.7) Cleaning up (optional)
 
 The pipeline, as presented, creates many heavy intermediate files which allows for easy backtracking but is not economical in terms of disk space.
 
@@ -479,149 +429,11 @@ The only map files which are necessary for any further work are the files produc
 
 It is however advised to keep intermediate files if possible to be able to resume from any step if needed.
 
-## 4) Genomic tracks
-
-This section deals with the various types of genomic tracks we may want to build in order to visualize them on the [Integrative Genomic Browser](https://igv.org/) as well as produce metaplots. Genomic tracks may be in `.bedgraph` (plain text) or `.bigwig` (indexed binary) format. The [bamCoverage](https://deeptools.readthedocs.io/en/develop/content/tools/bamCoverage.html) command from [deeptools](https://deeptools.readthedocs.io/en/develop/) is used to produce them.
-
-The following instructions will describe how to make both normalized tracks and tracks scaled by the spike-in factor. It is advised to produce both types of tracks for comparison.
-
-### 4.1) Normalized tracks
-
-RPKM normalization can be applied to generate comparable genomic tracks. The bin size will determine the resolution of the track. Optionally, the track may be smoothed for the purpose of visualization using the `--smoothLength` argument.
-The commands for single-end or paired-end differ in that the `-e` (extend reads) option must be followed with a value for the fragents length for single-end cases while this is automaticaly determined by the read mates in paired-end cases.
-
-**Example single-end normalized tracks script:**
-```shell
-bamCoverage -e $FRAGLENGTH \
-    -p $THREAD \
-    -bs $BINSIZE \
-    -of bigwig \
-    --normalizeUsing RPKM \
-    --smoothLength $SMOOTH \
-    -b sample.reference.filtered.masked.nodup.bam \
-    -o sample.RPKM.bigwig
-```
-
-**Example paired-end normalized tracks script:**
-```shell
-bamCoverage -e $FRAGLENGTH \
-    -p $THREAD \
-    -bs $BINSIZE \
-    -of bigwig \
-    --normalizeUsing RPKM \
-    --smoothLength $SMOOTH \
-    -b sample.reference.filtered.masked.nodup.bam \
-    -o sample.RPKM.bigwig
-```
-
-This can be repeated for each sample in the analysis whether input or IP.
-
-
-### 4.2) Tracks scaled by spike-in factor
-
-Ussing the [spike-in factors](#spikeinfactors) computed previously, we can rescale the tracks rather than applying a normalization.
-
-**Example single-end scaled by spike-in factor script:**
-```shell
-bamCoverage -e $FRAGLENGTH \
-    -p  $THREADS \
-    -bs $BINSIZE \
-    -of bigwig \
-    --scaleFactor $FACTOR \
-    --smoothLength $SMOOTH \
-    -b sample.reference.filtered.masked.nodup.bam \
-    -o sample.spike-in.bigwig
-```
-
-**Example paired-end scaled by spike-in factor script:**
-```shell
-bamCoverage -e \
-    -p  $THREADS \
-    -bs $BINSIZE \
-    -of bigwig \
-    --scaleFactor $FACTOR \
-    --smoothLength $SMOOTH \
-    -b sample.reference.filtered.masked.nodup.bam \
-    -o sample.spike-in.bigwig
-```
-
-This can be repeated for each experimental condition in the analysis, producing one track each IP sample.
-
-### 4.3) Tracks comparison
-
-Two tracks can be contrasted against each-other by generating a comparison track with the [bigwigCompare](https://deeptools.readthedocs.io/en/develop/content/tools/bigwigCompare.html) command from deeptools. This is useful to average biological replicates, generate IP/input tracks or compare two experimental conditions. The default comparisson is a log 2 fold change but other options are available with the `--operation` argument.
-
-The given tracks must have the same bin size and they should be normalized or scaled appropriately to make the comparison meaningful.
-
-**Example tracks comparison script:**
-
-```shell
-bigwigCompare \
-    -p $THREADS \
-    -bs $BINSIZE \
-    -of bigwig \
-    -b1 sample1.bigwig \
-    -b2 sample2.bigwig \
-    -o  sample1_v_sample2.bigwig
-```
-
-### 4.4) Multi-track summary plots
-
-The [deeptools](https://deeptools.readthedocs.io/en/develop/) toolkit also allows making summary comparisons between many tracks using the [multiBigwigSummary](https://deeptools.readthedocs.io/en/develop/content/tools/multiBigwigSummary.html) command from deeptools and using various plotting commands on its output. In this case we create a PCA plot using [plotPCA](https://deeptools.readthedocs.io/en/develop/content/tools/plotPCA.html?highlight=plotPCA) and a correlation matrix using [plotCorrelation](https://deeptools.readthedocs.io/en/develop/content/tools/plotCorrelation.html?highlight=plotCorrelation).
-
-The given tracks must have the same bin size and they should be normalized or scaled appropriately to make the comparison meaningful.
-
-Since the `--colors` arguments can use HTML color codes, the [color palette functions](https://stat.ethz.ch/R-manual/R-devel/library/grDevices/html/palettes.html) from the [R language](https://www.r-project.org/) are a practical way to find an appropriate color range for any number of tracks.
-
-**Example tracks summary plots script:**
-
-```shell
-TRACKS=(sample1.bigwig sample2.bigwig ... sampleN.bigwig)
-LABELS=(sample1 sample2 ... sampleN)
-  
-multiBigwigSummary bins \
-    -p $THREADS \
-    -out summary.npz \
-    -b ${TRACKS[@]} \
-    --labels ${LABELS[@]}
-  
-  
-COLORS=($(Rscript -e "writeLines(paste(rainbow(${#TRACKS[@]}), collapse=' '))"))
-  
-plotPCA \
-    --transpose \
-    --corData summary.npz \
-    --plotFile PCA.pdf \
-    --plotFileFormat pdf \
-    --colors ${COLORS[@]}
-  
-plotCorrelation \ 
-    --corData summary.npz \
-    --corMethod spearman \
-    --whatToPlot heatmap \
-    --plotNumbers \
-    --plotFile spearman.pdf
-```
-
-Alternatively to using `.bigwig` tracks, the [multiBamSummary](https://deeptools.readthedocs.io/en/develop/content/tools/multiBamSummary.html?highlight=multiBamSummary) command can be used from `.bam` files. Using `.bigwig` files is preferable simply because they can be normalized or scaled before comparison.
-
-<table align="left" width="450" cellspacing="0" cellpadding="0">
-    <tr>
-        <td><img src="./images/pipeline_diagrams/diagram_chiprx_2_peaks+annotation.png" align="left" width="450px"></td>
-    </tr>
-    <tr>
-        <td><a href="./images/pipeline_diagrams/diagram_chiprx_2_peaks+annotation.png?raw=1">⇗Full size image</a></td>
-    </tr>
-    <tr>
-        <td width="450"><b>Figure 2:</b> Diagram of peak calling and annotation.</td>
-    </tr>
-</table>
-
-## 5) <a id="peaks">Peak calling and annotation
+## 4) <a id="peaks">Peak calling and annotation
 
 Peak calling is used to discover genomic regions that are highly enriched in alligned reads. It is done using the [macs2 callpeak](https://hbctraining.github.io/Intro-to-ChIPseq/lessons/05_peak_calling_macs.html) command. The input and IP samples for an experimental condition are required. The command is different between single-end and paired-end applications. A p-value threshold (`-q` argument) of 0.01 is a good starting point but it must be evaluated empirically for each study.
 
-### 5.1) Narrow peaks
+### 4.1) Narrow peaks
 
 The default mode is to call narrow peaks. This mode is sufficient for most applications.
 
@@ -652,7 +464,7 @@ macs2 callpeak \
     -n sample
 ```
 
-### 5.2) Broad peaks
+### 4.2) Broad peaks
 
 Broad peak calling is preferable for studying chromatin marks or binding protein that span over several nucleosomes such as marks covering entire gene bodies (Ex. H2Bub, H3K36me3 or H3K27me3). It does the same peak detection as the narrow peak mode but then attempts to merge nearby highly enriched regions into broad regions. 
 
@@ -710,7 +522,7 @@ mergeOverlappingRegions.sh \
 
 --->
 
-### 5.3) Diffuse domains
+### 4.3) Diffuse domains
 
 This method is particularly relevant to the case of H3K27me3 on *Drosophila melanogaster* (used as the spike-in control for which peak calling is needed for [noise correction](#spikeinv2) of the spike-in factor) but it might apply to other similar cases.
 In this case, the mark is spread diffusely over wide domains which macs2 is unable to detect as peaks, leading it to end in failure. [epic2](https://github.com/biocore-ntnu/epic2), a reimplementation of [SICER2](https://github.com/zanglab/SICER2) which allows the detection of such domains can be used as an alternative to macs2.
@@ -759,10 +571,10 @@ printf "#Chromosome\tStart\tEnd\tName\tScore\tStrand\tlog2FoldChange\tpValue\tFD
 cat ${output_peaks} | awk -v FS='\t' -v OFS='\t' 'NR>1 {print $1, $2, $3, "peak"NR-1, $5, $6, $10, $4, $9, $7, $8}' >> sample.peaks.bed.tmp
 
 rm sample.peaks.bed
-mv sample.peaks.bed.tmp sample.peaks.bedss
+mv sample.peaks.bed.tmp sample.peaks.bed
 ```
 
-### <a id="annotation">5.3) Peak annotation</a>
+### <a id="annotation">4.3) Peak annotation</a>
 
 Using the [bedtools intersect](https://bedtools.readthedocs.io/en/latest/content/tools/intersect.html) command, we can discover which genomic regions (such as genes, transposable elements or any other loci of interest) are covered by peaks. This requires the use of a `.bed` file of the genomic regions of interest. By using the `-wo` option and filtering with `awk`, we can remove intersections under a certain length in base pair. The -sorted option makes the operation more efficient but requires the input files to be sorted by position (use [bedtools sort](https://bedtools.readthedocs.io/en/latest/content/tools/sort.html) if necessary). The peak files already are sorted `.bed` files. `cut` is then used to extract the column of region identifiers to obtain a set of regions without duplicates using `sort` and `uniq`. `grep` is then used to extract the lines in the original regions file which corresponds to those identifiers. Finally, bedtols can be used to sort the resulting bed file by positions.
 
@@ -809,11 +621,304 @@ grep -Ff  all_marked_regions.txt regions.bed > all_marked_regions.bed
     </tr>
 </table>
 
-## <a id="metaplots">6) Region metaplots and heatmaps</a>
+## <a id="spikeinfactors">5) Spike-In factors</a>
+
+### 5.1) Simple Spike-In factor</a>
+
+When using a Spike-In control to compare the sequencing depth of samples, we compute a scaling factor for each sample. To compute the scaling factor, the input and IP samples for an experimental condition are required, each having been split into their main organism and spike-in parts. This Spike-In factor is used for scaling tracks and as size factors for the differential analysis.
+
+First, the percentage *r* of spike-in reads in each experimental condition is computed using the input sample read counts:
+
+$$r=100*\frac{C^{Input}\_{Spike-in}}{C^{Input}\_{Reference}+C^{Input}\_{Spike-in}}$$
+
+Then the spike-in factor is computed as follows:
+
+$$F=\frac{r}{10^6*C^{IP}\_{Spike-in}}$$
+
+With *C* the read counts for a given sample (input or IP) and partition (reference or spike-in).
+
+**Example spike-in scale factor computation script:**
+
+<!---
+```shell
+reference_input=$(samtools view -c \
+    -@ $THREADS \
+    input_sample.reference.filtered.masked.nodup.bam \
+)
+
+spikein_input=$(samtools view -c \
+    -@ $THREADS \
+    input_sample.spikein.filtered.nodup.bam \
+)
+
+spikein_IP=$(samtools view -c \
+    -@ $THREADS \
+    IP_sample.spikein.filtered.nodup.bam \
+)
+
+(( r = 100 * spikein_input / (reference_input + spikein_input) ))
+(( FACTOR = r / (10**6 * spikein_IP ) ))
+```
+--->
+
+```shell
+reference_input=$(sambamba view -c \
+    -t $THREADS \
+    input_sample.reference.filtered.masked.nodup.bam \
+)
+
+spikein_input=$(sambamba view -c \
+    -t $THREADS \
+    input_sample.spikein.filtered.nodup.bam \
+)
+
+spikein_IP=$(sambamba view -c \
+    -t $THREADS \
+    IP_sample.spikein.filtered.nodup.bam \
+)
+
+(( r = 100 * spikein_input / (reference_input + spikein_input) ))
+(( FACTOR = r / (10**6 * spikein_IP ) ))
+```
+
+To be run for each experimental condition in the analysis.
+
+### <a id="spikeinv2">5.2) Noise corrected Spike-In factor</a>
+
+The way of computing the spike-in factor presented above suffers from the noisiness of the spike-in IP samples. In a regular ChIP-seq analysis, the background noise of IP samples is treated out during the peak calling step of the analysis. But this only applies to the alignments on the reference genome of the studied organism. The noisy exogenous alignments are still contributing to the spike-in facto computation. 
+
+In order to correct this, the raw count of spike-in reads in the IP samples can be replaced by a sum of the coverage of peaks.
+
+<table align="left" width="2000" cellspacing="0" cellpadding="0">
+    <tr>
+        <td><img src="./images/pipeline_diagrams/diagram_chiprx_5_spikev2.png" align="left" width="1000px"></td>
+    </tr>
+    <tr>
+        <td><a href="./images/pipeline_diagrams/diagram_chiprx_5_spikev2.png?raw=1">⇗Full size image</a></td>
+    </tr>
+    <tr>
+        <td width="1000"><b>Figure 5:</b> Diagram of the spike-in factor noise correction.</td>
+    </tr>
+</table>
+
+#### 5.2.1) Merge bams
+
+Because the number of exogenous reads in the samples tends be rather low, it may be preferable to merge all spike-in input reads and all spike-in IP reads in two merged sets of reads for the input and IP respectively.
+
+```shell
+BAMS_INPUT=(input_sample1_spikein.bam input_sample2_spikein.bam ... input_sampleN_spikein.bam)
+
+sambamba merge -t $THREADS merged_input_samples_spikein.bam ${BAMS_INPUT[@]}
+
+
+BAMS_IP=(IP_sample1.bam IP_sample2.bam ... IP_sampleN.bam)
+
+sambamba merge -t $THREADS merged_input_samples_spikein.bam ${BAMS_IP[@]}
+```
+
+#### 5.2.2) Peak calling
+
+From those merged alignment files, a peak calling is performed to obtain a singe set of peaks on the spike-in genome. Use whatever method in the [peak calling section](#peaks) is appropriate for the experiment (single or paired end, narrow or broad peaks), same a was used for the main peak calling step in the analysis.
+
+#### 5.3.3) Coverage counts
+The coverge of each IP sample on the set of peaks is then computed.
+  
+```shell
+bedtools multicov \
+    -bams ${BAMS_IP[@]} \
+    -bed merged_samples_spikein.narrowPeak \
+> merged_samples_spikein_peaks_coverage.bed
+```
+
+**Note:** Peak files will either end with `.narrowPeak` or `.broadPeak` depending on the method used.
+
+The corrected IP reads count for each sample is then the sum of its peak coverages.
+
+```shell
+bed=merged_samples_spikein_peaks_coverage.bed
+
+start=$(( $(head -n 1 $bed | grep -o $'\t' | wc -l) - ${#BAMS_IP[@]} + 2 ))
+
+spikein_IP=($(awk -v start=$start '{ for (i=start; i<=NF; i++) a[i]+=$i }END{ for (i=start; i<=NF; i++) printf a[i]" " }' $bed))
+```
+
+Then this corected count is used as previously to compute the scale factor.
+
+<!---
+```shell
+reference_input=$(samtools view \
+    -@ $THREADS \
+    -c input_sample.reference.filtered.masked.nodup.bam \
+)
+
+spikein_input=$(samtools view \
+    -@ $THREADS \
+    -c input_sample.spikein.filtered.nodup.bam \
+)
+
+(( r = 100 * spikein_input / (main_input + spikein_input) ))
+(( FACTOR = r / (10**6 * spikein_IP ) ))
+```
+--->
+
+```shell
+reference_input=$(sambamba view -c \
+    -t $THREADS \
+    input_sample.reference.filtered.masked.nodup.bam \
+)
+
+spikein_input=$(sambamba view -c \
+    -t $THREADS \
+    input_sample.spikein.filtered.nodup.bam \
+)
+
+(( r = 100 * spikein_input / (main_input + spikein_input) ))
+(( FACTOR = r / (10**6 * spikein_IP ) ))
+```
+
+## 6) Genomic tracks
+
+This section deals with the various types of genomic tracks we may want to build in order to visualize them on the [Integrative Genomic Browser](https://igv.org/) as well as produce metaplots. Genomic tracks may be in `.bedgraph` (plain text) or `.bigwig` (indexed binary) format. The [bamCoverage](https://deeptools.readthedocs.io/en/develop/content/tools/bamCoverage.html) command from [deeptools](https://deeptools.readthedocs.io/en/develop/) is used to produce them.
+
+The following instructions will describe how to make both normalized tracks and tracks scaled by the spike-in factor. It is advised to produce both types of tracks for comparison.
+
+### 6.1) Normalized tracks
+
+RPKM normalization can be applied to generate comparable genomic tracks. The bin size will determine the resolution of the track. Optionally, the track may be smoothed for the purpose of visualization using the `--smoothLength` argument.
+The commands for single-end or paired-end differ in that the `-e` (extend reads) option must be followed with a value for the fragents length for single-end cases while this is automaticaly determined by the read mates in paired-end cases.
+
+**Example single-end normalized tracks script:**
+```shell
+bamCoverage -e $FRAGLENGTH \
+    -p $THREAD \
+    -bs $BINSIZE \
+    -of bigwig \
+    --normalizeUsing RPKM \
+    --smoothLength $SMOOTH \
+    -b sample.reference.filtered.masked.nodup.bam \
+    -o sample.RPKM.bigwig
+```
+
+**Example paired-end normalized tracks script:**
+```shell
+bamCoverage -e $FRAGLENGTH \
+    -p $THREAD \
+    -bs $BINSIZE \
+    -of bigwig \
+    --normalizeUsing RPKM \
+    --smoothLength $SMOOTH \
+    -b sample.reference.filtered.masked.nodup.bam \
+    -o sample.RPKM.bigwig
+```
+
+This can be repeated for each sample in the analysis whether input or IP.
+
+
+### 6.2) Tracks scaled by spike-in factor
+
+Ussing the [spike-in factors](#spikeinfactors) computed previously, we can rescale the tracks rather than applying a normalization.
+
+**Example single-end scaled by spike-in factor script:**
+```shell
+bamCoverage -e $FRAGLENGTH \
+    -p  $THREADS \
+    -bs $BINSIZE \
+    -of bigwig \
+    --scaleFactor $FACTOR \
+    --smoothLength $SMOOTH \
+    -b sample.reference.filtered.masked.nodup.bam \
+    -o sample.spike-in.bigwig
+```
+
+**Example paired-end scaled by spike-in factor script:**
+```shell
+bamCoverage -e \
+    -p  $THREADS \
+    -bs $BINSIZE \
+    -of bigwig \
+    --scaleFactor $FACTOR \
+    --smoothLength $SMOOTH \
+    -b sample.reference.filtered.masked.nodup.bam \
+    -o sample.spike-in.bigwig
+```
+
+This can be repeated for each experimental condition in the analysis, producing one track each IP sample.
+
+### 6.3) Tracks comparison
+
+Two tracks can be contrasted against each-other by generating a comparison track with the [bigwigCompare](https://deeptools.readthedocs.io/en/develop/content/tools/bigwigCompare.html) command from deeptools. This is useful to average biological replicates, generate IP/input tracks or compare two experimental conditions. The default comparisson is a log 2 fold change but other options are available with the `--operation` argument.
+
+The given tracks must have the same bin size and they should be normalized or scaled appropriately to make the comparison meaningful.
+
+**Example tracks comparison script:**
+
+```shell
+bigwigCompare \
+    -p $THREADS \
+    -bs $BINSIZE \
+    -of bigwig \
+    -b1 sample1.bigwig \
+    -b2 sample2.bigwig \
+    -o  sample1_v_sample2.bigwig
+```
+
+### 6.4) Multi-track summary plots
+
+The [deeptools](https://deeptools.readthedocs.io/en/develop/) toolkit also allows making summary comparisons between many tracks using the [multiBigwigSummary](https://deeptools.readthedocs.io/en/develop/content/tools/multiBigwigSummary.html) command from deeptools and using various plotting commands on its output. In this case we create a PCA plot using [plotPCA](https://deeptools.readthedocs.io/en/develop/content/tools/plotPCA.html?highlight=plotPCA) and a correlation matrix using [plotCorrelation](https://deeptools.readthedocs.io/en/develop/content/tools/plotCorrelation.html?highlight=plotCorrelation).
+
+The given tracks must have the same bin size and they should be normalized or scaled appropriately to make the comparison meaningful.
+
+Since the `--colors` arguments can use HTML color codes, the [color palette functions](https://stat.ethz.ch/R-manual/R-devel/library/grDevices/html/palettes.html) from the [R language](https://www.r-project.org/) are a practical way to find an appropriate color range for any number of tracks.
+
+**Example tracks summary plots script:**
+
+```shell
+TRACKS=(sample1.bigwig sample2.bigwig ... sampleN.bigwig)
+LABELS=(sample1 sample2 ... sampleN)
+  
+multiBigwigSummary bins \
+    -p $THREADS \
+    -out summary.npz \
+    -b ${TRACKS[@]} \
+    --labels ${LABELS[@]}
+  
+  
+COLORS=($(Rscript -e "writeLines(paste(rainbow(${#TRACKS[@]}), collapse=' '))"))
+  
+plotPCA \
+    --transpose \
+    --corData summary.npz \
+    --plotFile PCA.pdf \
+    --plotFileFormat pdf \
+    --colors ${COLORS[@]}
+  
+plotCorrelation \ 
+    --corData summary.npz \
+    --corMethod spearman \
+    --whatToPlot heatmap \
+    --plotNumbers \
+    --plotFile spearman.pdf
+```
+
+Alternatively to using `.bigwig` tracks, the [multiBamSummary](https://deeptools.readthedocs.io/en/develop/content/tools/multiBamSummary.html?highlight=multiBamSummary) command can be used from `.bam` files. Using `.bigwig` files is preferable simply because they can be normalized or scaled before comparison.
+
+<table align="left" width="450" cellspacing="0" cellpadding="0">
+    <tr>
+        <td><img src="./images/pipeline_diagrams/diagram_chiprx_2_peaks+annotation.png" align="left" width="450px"></td>
+    </tr>
+    <tr>
+        <td><a href="./images/pipeline_diagrams/diagram_chiprx_2_peaks+annotation.png?raw=1">⇗Full size image</a></td>
+    </tr>
+    <tr>
+        <td width="450"><b>Figure 2:</b> Diagram of peak calling and annotation.</td>
+    </tr>
+</table>
+
+## <a id="metaplots">7) Region metaplots and heatmaps</a>
 
 The [deeptools](https://deeptools.readthedocs.io/en/develop/) toolkit can be used to make plots that summarize the alignment signal across a number of samples on a number of sets of regions. The two types of plot that can be produced are metaplots, which show combined profile curves of the signal or correlation heatmaps of the regions.
 
-### 6.1) Build the set of genomic regions
+### 7.1) Build the set of genomic regions
 
 At this point we have individual [peak annotations](#annotation) for each sample. We need to collect those annotations together into a single set. If there are multiple biological replicates for a condition, we can select only the regions that appear in all replicates:
 
@@ -835,7 +940,7 @@ awk '{print $0}' ${ANNOT[@]} | sort | uniq > all_marked_regions.bed
 
 These commands can be repeated for whatever sets of regions have been annotated (genes, TEs, etc).
 
-### 6.2) Compute matrix
+### 7.2) Compute matrix
 
 Before producing any plots, a matrix must be computed between the `.bigwig` coverage tracks to compare and `.bed` genomic region files to study. Any number of tracks and region sets can be loaded in. 
 
@@ -874,7 +979,7 @@ computeMatrix reference-point -p $THREADS \
 
 **Note:** In this command `--averageTypeBins` does not determine the statistic used to combine signals from the same regions as this calculation is not done in this step. This argument only determines when dealing with input `.bigwig` files with different bun sizes.
 
-### 6.3) Profile plot
+### 7.3) Profile plot
 
 From the matrix file, we can generate combined profile plots in several configurations. The default behaviour is to generate one plot per track on which the average profile over each regions is overlaid. The `--perGroup` argument reverses this behaviour to compare the tracks on each regions set. The statistic used to combine the profile is determined by the `--averageType` argument.
 
@@ -912,7 +1017,7 @@ plotProfile --perGroup --dpi 300 --averageType median \
     --outFileName genes_profile_perGroup.pdf
 ```
 
-### 6.4) Heatmaps
+### 7.4) Heatmaps
 
 From the same matrix file, we can produce clustered heatmaps of the genomic regions along the metaplot profiles of the different samples. Similatrly to `plotProfile`, the `--perGroup` argument can be used.
 
@@ -950,11 +1055,11 @@ plotHeatmap --perGroup --dpi 300 \
     </tr>
 </table>
 
-## <a id="diff">7) Differential analysis</a>
+## <a id="diff">8) Differential analysis</a>
 
 The [DESeq2](https://bioconductor.org/packages/release/bioc/html/DESeq2.html) package for the [R language](https://www.r-project.org/) can be used to make a differential analysis of the coverage of different regions of the genome (genes, Transcription Elements, etc.) by aligned reads. The following packages also need to be loaded for some of the code examples: [gplots](https://cran.r-project.org/web/packages/gplots/), [RColorBrewer](https://cran.r-project.org/web/packages/RColorBrewer/index.html), [ggplot2](https://ggplot2.tidyverse.org/).
 
-### 7.1) Universe of peaks annotation
+### 8.1) Universe of peaks annotation
 For the purpose of the differential analysis, rather than the conservative annotation used in drawing [metaplots](#metaplots), a more permissive set can be built under the assumption that any falsely annotated regions will be identified as statistically insignificant in the differntial analysis. The first step in the construction of this annotation is to merge the peaks of all the samples in the experiment to build single set of peaks. This is done using [bedtools merge](https://bedtools.readthedocs.io/en/latest/content/tools/merge.html).
 
 ```shell
@@ -967,7 +1072,7 @@ cat ${BEDS[@]} | bedtools sort | bedtools merge > universe_of_peaks.bed
 
 This "universe of peaks" file is then annotated as presented in [peak annotation](#annotation) on each set of regions to study in the differential analysis.
 
-### 7.2) Multiple maps coverage
+### 8.2) Multiple maps coverage
 
 Before going to R, the read coverage of regions of interest by aligned reads must be computed. This can be done for multiple samples at once using the [bedtools multicov](https://bedtools.readthedocs.io/en/latest/content/tools/multicov.html) command.
 
@@ -1003,7 +1108,7 @@ paste <(cut -f 1-3 universe_of_peaks_annotation.bed) ${inserts[@]} > universe_of
 
 **Note:** The annotation file must be sorted for `bedtools multicov` to work. Use [bedtools sort](https://bedtools.readthedocs.io/en/latest/content/tools/sort.html) if necessary.
 
-### 7.3) Building the model
+### 8.3) Building the model
 
 First, a table describing the experimental design has to be prepared. This should at least contain the identifier for the samples and variables describing the biological replicates.
 
@@ -1065,7 +1170,7 @@ Finally, the normalization may be computed according to the model.
 dds <- DESeq2::DESeq(dds)
 ```
 
-### 7.4) Normalized counts
+### 8.4) Normalized counts
 
 We can output the normalized coverage values for a set of regions such as, in the following example, genes.
 
@@ -1080,7 +1185,7 @@ write.table(
 )
 ```
 
-### 7.5) Samples clustering heatmap and PCA
+### 8.5) Samples clustering heatmap and PCA
 
 Similarly to the [multi-track summary plots](#summary) built earlier, we can produce clustering heatmap and PCA plots with the normalized coverage computed for the DESeq2 model.
 
@@ -1119,7 +1224,7 @@ ggplot2::ggsave("/PCA_protein_v_sample.png",
 )
 ```
 
-### 7.6) Differentially marked regions
+### 8.6) Differentially marked regions
 
 Any two pairs of experimental conditions can be compared by the long fold change in the coverage levels over genomic regions. This will ultimately lead to the identification of hypo- and hyper-marked genes and/or TEs in the test experimental conditions vs the control one.
 
@@ -1176,96 +1281,4 @@ legend(
     lty=c(NA, NA, "dashed"), lwd=2L, pch=c(15, 15, NA), col=c("grey", "blue", "red")
 )
 dev.off()
-```
-
-## <a id="spikeinv2">8) Spike-In factor noise correction</a>
-
-In a regular ChIP-seq analysis, background noise of IP samples is treated out during the peak calling step of the analysis. But this only applies to the alignments on the reference genome of the studied organism. The noisy exogenous alignments are still contributing to the spike-in facto computation. 
-In order to correct this, the raw count of spike-in reads in the IP samples can be replaced by a sum of the coverage of peaks.
-
-<table align="left" width="2000" cellspacing="0" cellpadding="0">
-    <tr>
-        <td><img src="./images/pipeline_diagrams/diagram_chiprx_5_spikev2.png" align="left" width="1000px"></td>
-    </tr>
-    <tr>
-        <td><a href="./images/pipeline_diagrams/diagram_chiprx_5_spikev2.png?raw=1">⇗Full size image</a></td>
-    </tr>
-    <tr>
-        <td width="1000"><b>Figure 5:</b> Diagram of the spike-in factor noise correction.</td>
-    </tr>
-</table>
-
-### 8.1) Merge bams
-
-Because the number of exogenous reads in the samples tends be rather low, it may be preferable to merge all spike-in input reads and all spike-in IP reads in two merged sets of reads for the input and IP respectively.
-
-```shell
-BAMS_INPUT=(input_sample1_spikein.bam input_sample2_spikein.bam ... input_sampleN_spikein.bam)
-
-sambamba merge -t $THREADS merged_input_samples_spikein.bam ${BAMS_INPUT[@]}
-
-
-BAMS_IP=(IP_sample1.bam IP_sample2.bam ... IP_sampleN.bam)
-
-sambamba merge -t $THREADS merged_input_samples_spikein.bam ${BAMS_IP[@]}
-```
-
-### 8.2) Peak calling
-
-From those merged alignment files, a peak calling is performed to obtain a singe set of peaks on the spike-in genome. Use whatever method in the [peak calling section](#peaks) is appropriate for the experiment (single or paired end, narrow or broad peaks), same a was used for the main peak calling step in the analysis.
-
-### 8.3) Coverage counts
-The coverge of each IP sample on the set of peaks is then computed.
-  
-```shell
-bedtools multicov \
-    -bams ${BAMS_IP[@]} \
-    -bed merged_samples_spikein.narrowPeak \
-> merged_samples_spikein_peaks_coverage.bed
-```
-
-**Note:** Peak files will either end with `.narrowPeak` or `.broadPeak` depending on the method used.
-
-The corrected IP reads count for each sample is then the sum of its peak coverages.
-
-```shell
-bed=merged_samples_spikein_peaks_coverage.bed
-
-start=$(( $(head -n 1 $bed | grep -o $'\t' | wc -l) - ${#BAMS_IP[@]} + 2 ))
-
-spikein_IP=($(awk -v start=$start '{ for (i=start; i<=NF; i++) a[i]+=$i }END{ for (i=start; i<=NF; i++) printf a[i]" " }' $bed))
-```
-
-Then this corected count is used as previously to compute the scale factor.
-
-<!---
-```shell
-reference_input=$(samtools view \
-    -@ $THREADS \
-    -c input_sample.reference.filtered.masked.nodup.bam \
-)
-
-spikein_input=$(samtools view \
-    -@ $THREADS \
-    -c input_sample.spikein.filtered.nodup.bam \
-)
-
-(( r = 100 * spikein_input / (main_input + spikein_input) ))
-(( FACTOR = r / (10**6 * spikein_IP ) ))
-```
---->
-
-```shell
-reference_input=$(sambamba view -c \
-    -t $THREADS \
-    input_sample.reference.filtered.masked.nodup.bam \
-)
-
-spikein_input=$(sambamba view -c \
-    -t $THREADS \
-    input_sample.spikein.filtered.nodup.bam \
-)
-
-(( r = 100 * spikein_input / (main_input + spikein_input) ))
-(( FACTOR = r / (10**6 * spikein_IP ) ))
 ```
