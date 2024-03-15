@@ -28,13 +28,13 @@ Genomic resources used by the the team when applying the above pipelines to *Ara
 **Reference genomes:**
 *  [⇗TAIR10_chr_all.fas.gz](https://www.arabidopsis.org/download_files/Genes/TAIR10_genome_release/TAIR10_chromosome_files/TAIR10_chr_all.fas.gz): *Arabidopsis thaliana* TAIR10 genome assembly.
 *  [⇗Col-CEN_v1.2.fasta.gz](https://github.com/schatzlab/Col-CEN/blob/main/v1.2/Col-CEN_v1.2.fasta.gz): *Arabidopsis thaliana* Col-CEN genome assembly.
+*  [⇗Download page](https://www.ebi.ac.uk/ena/browser/view/GCA_028009825) for *Arabidopsis thaliana* Col-CC genome assembly.
 *  [⇗Download page](https://www.ncbi.nlm.nih.gov/assembly/GCF_000001215.4/) for *Drosophila melanogaster* release 6 genome assembly.
 
 **Annotation:**
 *  [Araport11_GFF3.gene.201606.bed](resources/Araport11_GFF3.gene.201606.bed): Araport 11 annotation for genes on *Arabidopsis thaliana* TAIR10 genome assembly as a `.bed` file. Converted from the [june 2016 annotation](https://www.arabidopsis.org/download_files/Genes/Araport11_genome_release/archived/Araport11_GFF3_genes_transposons.Jun2016.gff.gz).
 *  [Araport11_GFF3.TAIR10.transposable_element.201606.bed](resources/Araport11_GFF3.TAIR10.transposable_element.201606.bed): Araport 11 annotation for transposable elements on *Arabidopsis thaliana* TAIR10 genome assembly. Converted from the [june 2016 annotation](https://www.arabidopsis.org/download_files/Genes/Araport11_genome_release/archived/Araport11_GFF3_genes_transposons.Jun2016.gff.gz).
 *  [Col-CEN_v1.2_genes.araport11.gene.bed](resources/Col-CEN_v1.2_genes.araport11.gene.bed): Lifted Araport 11 annotation for genes on *Arabidopsis thaliana* Col-CEN genome assembly. Converted from the [`.gff3` annotation](https://www.arabidopsis.org/download_files/Genes/Col-CEN%20genome%20assembly%20release/ColCEN_GENES_Araport11.gff3.gz).
-*  [Col-CEN_v1.2_TEs_V4.bed](resources/Col-CEN_v1.2_TEs_V4.bed): Lifted Araport 11 annotation for transposable elements on *Arabidopsis thaliana* Col-CEN genome assembly.
 
 **Blacklists:**
 *  [TAIR10_blacklist.bed](resources/TAIR10_blacklist.bed): A blacklist of aberrant regions for the *Arabidopsis thaliana* TAIR10 genome.
