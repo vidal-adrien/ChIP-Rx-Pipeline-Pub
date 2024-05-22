@@ -294,7 +294,7 @@ sambamba view \
     -o sample.filtered.bam \
     sample_Aligned.sortedByCoord.out.bam
 
-sabamba index -t $THREADS sample.filtered.bam
+sambamba index -t $THREADS sample.filtered.bam
 ```
 
 To be run for each sample in the analysis. 
@@ -317,7 +317,7 @@ sambamba markdup -r \
     sample.filtered.bam \
     sample.filtered.nodup.bam \
   
-sabamba index -t $THREADS sample.filtered.nodup.bam
+sambamba index -t $THREADS sample.filtered.nodup.bam
 ```
 
 To be run for each sample in the analysis.

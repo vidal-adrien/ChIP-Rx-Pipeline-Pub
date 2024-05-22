@@ -3,7 +3,6 @@
 ##################################################################################################
 #~ bedFromGff                                                                                   ~#
 #~ Author: Adrien Vidal                                                                         ~#
-#~ Last Edited: 20 feb. 2023                                                                    ~#
 ##################################################################################################
 
 use strict;
@@ -12,7 +11,7 @@ use Getopt::Long;
 
 sub usage {
     print(
-        "bedfromGff\n
+        "bedFromGff\n
         Creates a bed table of the regions from a gff file.
         Usage: bedFromGff [options] -i <in.gff>\n
         Options:

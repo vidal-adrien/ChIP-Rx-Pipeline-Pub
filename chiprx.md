@@ -314,7 +314,7 @@ sambamba view \
     -o sample.filtered.bam \
     sample_Aligned.sortedByCoord.out.bam
 
-sabamba index -t $THREADS sample.filtered.bam
+sambamba index -t $THREADS sample.filtered.bam
 ```
 
 To be run for each sample in the analysis.
@@ -337,7 +337,7 @@ sambamba markdup -r \
         sample.filtered.bam \
         sample.filtered.nodup.bam \
 
-sabamba index -t $THREADS sample.filtered.nodup.bam
+sambamba index -t $THREADS sample.filtered.nodup.bam
 ```
 
 To be run for each sample in the analysis.
@@ -373,7 +373,7 @@ sambamba view -h -t $THREADS sample.filtered.bam \
     | sambamba view -S -t $THREADS -f bam \
     -o sample.reference.filtered.nodup.bam /dev/stdin
 
-sabamba index -t $THREADS sample.reference.filtered.nodup.bam
+sambamba index -t $THREADS sample.reference.filtered.nodup.bam
 
 sambamba view -h -t $THREADS ${input_bam} \
     | grep ${spikeInTag} \
@@ -381,7 +381,7 @@ sambamba view -h -t $THREADS ${input_bam} \
     | sambamba view -S -t $THREADS -f bam \
     -o sample.spikein.filtered.nodup.bam /dev/stdin
 
-sabamba index -t $THREADS sample.spikein.filtered.nodup.bam
+sambamba index -t $THREADS sample.spikein.filtered.nodup.bam
 ```
 To be run for each sample in the analysis.
 
