@@ -47,6 +47,7 @@ my ($chr);
 my ($count) = 0;
 my ($firstChr) = 1;
 while (<$fd1>){
+    next if($_ eq "\n"); # Empty line, skip.
     next if($_ =~ m/^[;].*/); # Comment line, skip.
     if ($_ =~ m/^>(.*)/) {  # Seq Id line, record the bp count of the previous sequence...
         if( ! $firstChr ){  # ...unless it's the first sequence of the file.

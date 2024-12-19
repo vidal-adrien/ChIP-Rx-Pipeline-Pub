@@ -57,7 +57,8 @@ if( scalar $bed ){
 
 my %seen; # Hashmap to keep count of ids:
 while (<$fd1>){
-    next if($_ =~ m/^[#].*/); # Comment line, skip.
+    next if($_ eq "\n"); # Empty line, skip.
+    next if($_ =~ m/^[#].*/); # Comment line, skip.    
     my @fields = split(/\t/, $_);
 
     # Filter by specified features:
