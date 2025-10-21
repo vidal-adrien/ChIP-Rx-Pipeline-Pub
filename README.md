@@ -1,5 +1,7 @@
 # PNDS ChIP-seq/ChIP-Rx pipelines
-[![DOI](https://zenodo.org/badge/633768138.svg)](https://doi.org/10.5281/zenodo.17397579)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17397580.svg)](https://doi.org/10.5281/zenodo.17397580)
+
+
 
 This is a public collection of documentation about ChIP-seq and ChIP-Rx pipelines used by the PNDS (Plant Nuclear Dynamics & Signaling) Team led by Clara Bourbousse & Fredy Barneche.
 
