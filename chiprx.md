@@ -682,7 +682,7 @@ spikein_IP=$(samtools view -c \
 )
 
 (( r = 100 * spikein_input / (principal_input + spikein_input) ))
-(( FACTOR = r / (10**6 * spikein_IP ) ))
+(( FACTOR = r / (10**-6 * spikein_IP ) ))
 ```
 --->
 
@@ -703,7 +703,7 @@ spikein_IP=$(sambamba view -c \
 )
 
 (( r = 100 * spikein_input / (principal_input + spikein_input) ))
-(( FACTOR = r / (10**6 * spikein_IP ) ))
+(( FACTOR = r / (10**-6 * spikein_IP ) ))
 ```
 
 To be run for each experimental condition in the analysis.
@@ -782,7 +782,7 @@ spikein_input=$(samtools view \
 )
 
 (( r = 100 * spikein_input / (main_input + spikein_input) ))
-(( FACTOR = r / (10**6 * spikein_IP ) ))
+(( FACTOR = r / (10**-6 * spikein_IP ) ))
 ```
 --->
 
@@ -798,7 +798,7 @@ spikein_input=$(sambamba view -c \
 )
 
 (( r = 100 * spikein_input / (main_input + spikein_input) ))
-(( FACTOR = r / (10**6 * spikein_IP ) ))
+(( FACTOR = r / (10**-6 * spikein_IP ) ))
 ```
 
 ## 6) Genomic tracks
